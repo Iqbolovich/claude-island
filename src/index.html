@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Claude Island</title>
+<link rel="stylesheet" href="island.css">
+</head>
+<body>
+<!-- stage = всё окно. Окно прозрачное и click-through; остров прижат к краю по пресету -->
+<div class="stage" id="stage" data-pos="tc">
+  <div class="island" id="island" tabindex="0" aria-label="Claude Island">
+    <div class="volglow" id="volGlow"><i id="vFill"></i></div>
+
+    <!-- свёрнутый -->
+    <div class="view compact on" id="vCompact">
+      <div class="row">
+        <svg class="ring" viewBox="0 0 24 24">
+          <circle class="bg" cx="12" cy="12" r="9"/>
+          <circle class="fg" id="ringFg" cx="12" cy="12" r="9" stroke-dasharray="56.5" stroke-dashoffset="20"/>
+          <circle class="spin" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="18 82"/>
+        </svg>
+        <span class="pct num" id="cPct">—</span>
+      </div>
+      <div class="row">
+        <span class="dot num" id="dot"></span>
+        <div class="eq"><i></i><i></i><i></i><i></i></div>
+        <span class="timer num" id="cTimer">нет связи</span>
+      </div>
+    </div>
+
+    <!-- раскрытый -->
+    <div class="view full" id="vFull">
+      <div class="head">
+        <div class="brand"><span class="logo"></span>Claude · лимиты</div>
+        <div class="row">
+          <span class="small num" id="upd">нет данных</span>
+          <button class="hide" id="bSettings" title="Настройки" aria-label="Настройки">⚙</button>
+          <button class="hide" id="bHide" title="Скрыть остров" aria-label="Скрыть остров">⌃</button>
+        </div>
+      </div>
+
+      <div class="meter">
+        <div class="top"><span>5-часовое окно</span><b class="num"><span id="fPct">—</span> · сброс через <span id="fTimer">—</span></b></div>
+        <div class="bar"><span id="b5"></span></div>
+        <svg class="spark" id="spark" viewBox="0 0 300 30" preserveAspectRatio="none" aria-label="Расход за окно"></svg>
+      </div>
+
+      <div class="meter">
+        <div class="top"><span>Неделя</span><b class="num"><span id="wPct">—</span> · <span id="wReset">сброс —</span></b></div>
+        <div class="bar"><span id="bw"></span></div>
+      </div>
+
+      <div class="forecast num" id="forecast">Нет данных</div>
+
+      <div class="tile" id="tMusic">
+        <div class="cover" id="cover">♪</div>
+        <div class="t">
+          <div id="song">Ничего не играет</div>
+          <div class="small" id="artist">—</div>
+          <div class="prog"><span id="prog"></span></div>
+        </div>
+        <div class="ctrl">
+          <button id="mPrev" aria-label="Предыдущий трек">⏮</button>
+          <button id="mPlay" aria-label="Играть или пауза">▶</button>
+          <button id="mNext" aria-label="Следующий трек">⏭</button>
+        </div>
+      </div>
+
+      <div class="tile" id="tTg">
+        <div class="t">
+          <div class="small" id="tgCount">Telegram</div>
+          <div class="msgs" id="msgs"><div>Нет новых сообщений</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- короткая плашка: готово, ждёт, скопировано, зарядка, наушники -->
+    <div class="view chipview" id="vChip"><span class="cico" id="cIco"></span><span id="cText"></span></div>
+
+    <!-- уведомление -->
+    <div class="view nview" id="vNotif">
+      <div class="t"><div><b id="nFrom"></b></div><div class="small" id="nText"></div></div>
+    </div>
+
+  </div>
+</div>
+<script type="module" src="island.js"></script>
+</body>
+</html>
