@@ -20,7 +20,8 @@ const S = {
 try { S.hist = JSON.parse(localStorage.getItem('ci-hist') || '[]'); } catch {}
 
 // пороги и прочее приходят из настроек (settings-update)
-const CFG = { warn: 80, alarm: 95, swap: 4, tg: true };
+const CFG = { warn: 80, alarm: 95, swap: 4, tg: true, fx: {}, pomo: 25 };
+const on = k => CFG.fx[k] !== false;
 const color = p => p >= CFG.alarm ? 'var(--bad)' : p >= CFG.warn ? 'var(--warn)' : 'var(--ok)';
 const fmt = ms => { ms = Math.max(0, ms); const s = Math.floor(ms / 1e3), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
   return `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}`; };
@@ -133,21 +134,21 @@ function render() {
   $('wPct').textContent = stale ? '—' : S.week + '%';
   $('bw').style.width = S.week + '%'; $('bw').style.background = stale ? c : color(S.week);
   $('wReset').textContent = S.weekResetAt
-    ? 'сброс ' + new Date(S.weekResetAt).toLocaleString('ru-RU', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
-    : 'сброс —';
+    ? t('сброс {0}', new Date(S.weekResetAt).toLocaleString(locale(), { weekday: 'short', hour: '2-digit', minute: '2-digit' }))
+    : t('сброс —');
 
   const ago = Math.floor((now - S.lastUpdate) / 60e3);
-  $('upd').textContent = !S.lastUpdate ? 'нет данных' : stale ? `нет связи · ${ago} мин назад` : ago < 1 ? 'обновлено только что' : `обновлено ${ago} мин назад`;
+  $('upd').textContent = !S.lastUpdate ? t('нет данных') : stale ? t('нет связи · {0} мин назад', ago) : ago < 1 ? t('обновлено только что') : t('обновлено {0} мин назад', ago);
   $('upd').classList.toggle('bad', stale);
 
   // прогноз: темп = % за прошедшую часть окна
   if (!S.flash) {
-    if (stale) $('forecast').textContent = S.err || 'Нет связи с Claude';
+    if (stale) $('forecast').textContent = S.err ? t(S.err) : t('Нет связи с Claude');
     else {
       const elapsed = W5 - left, rate = S.pct / Math.max(elapsed, 60e3), until = (100 - S.pct) / rate;
-      $('forecast').textContent = S.pct >= 100 ? '⛔ Лимит исчерпан до сброса'
-        : until > left ? '✓ При текущем темпе хватит до сброса'
-        : `⚠ При текущем темпе лимит кончится через ~${hm(until)}`;
+      $('forecast').textContent = S.pct >= 100 ? t('⛔ Лимит исчерпан до сброса')
+        : until > left ? t('✓ При текущем темпе хватит до сброса')
+        : t('⚠ При текущем темпе лимит кончится через ~{0}', hm(until));
     }
   }
   spark();
@@ -158,8 +159,8 @@ function render() {
   const pos = m.dur ? Math.min(m.dur, m.pos + (m.playing ? (now - (m.posAt || now)) / 1000 : 0)) : m.pos;
   isl.classList.toggle('playing', m.playing);
   isl.classList.toggle('hasMedia', m.has);
-  $('song').textContent = m.has ? m.title : 'Ничего не играет';
-  $('artist').textContent = m.has ? (m.dur ? `${m.artist} · ${mmss(pos)} / ${mmss(m.dur)}` : m.artist) : 'Включи трек в любом плеере';
+  $('song').textContent = m.has ? m.title : t('Ничего не играет');
+  $('artist').textContent = m.has ? (m.dur ? `${m.artist} · ${mmss(pos)} / ${mmss(m.dur)}` : m.artist) : t('Включи трек в любом плеере');
   $('prog').style.width = (m.dur ? pos / m.dur * 100 : 0) + '%';
   $('mPlay').textContent = m.playing ? '⏸' : '▶';
   ['mPrev', 'mPlay', 'mNext'].forEach(b => { $(b).disabled = !m.has; });
@@ -171,10 +172,10 @@ function render() {
   const tgHide = !CFG.tg || (n === 0 && S.tg !== 'denied');
   if ($('tTg').hidden !== tgHide) { $('tTg').hidden = tgHide; fit(); }
   $('dot').textContent = n;
-  $('tgCount').textContent = n ? `Telegram · ${n} непрочит. · клик, чтобы прочитать` : 'Telegram';
+  $('tgCount').textContent = n ? t('Telegram · {0} непрочит. · клик, чтобы прочитать', n) : 'Telegram';
   $('msgs').innerHTML = n
     ? S.unread.slice(-3).reverse().map(x => `<div><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join('')
-    : `<div>${S.tg === 'denied' ? 'Нет доступа к уведомлениям — разреши в Параметрах Windows' : 'Нет новых сообщений'}</div>`;
+    : `<div>${S.tg === 'denied' ? t('Нет доступа к уведомлениям — разреши в Параметрах Windows') : t('Нет новых сообщений')}</div>`;
 
   fit();
 }
@@ -185,14 +186,15 @@ setInterval(render, 1000);
 let clockMode = false;
 // часы показываем всегда, даже без связи: чередуются с таймером или с «нет связи»
 function compactText(left, stale = isl.classList.contains('stale')) {
-  if (clockMode) return new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  return stale ? 'нет связи' : '↻ ' + hm(left);
+  if (S.pomoEnd) return '🍅 ' + mmss(Math.max(0, (S.pomoEnd - Date.now()) / 1000));
+  if (clockMode) return new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+  return stale ? t('нет связи') : '↻ ' + hm(left);
 }
 // ширина фиксируется по самому длинному варианту, чтобы остров не дышал при смене
 function lockWidth() {
-  const el = $('cTimer'), t = el.textContent; el.style.minWidth = ''; let w = 0;
-  for (const s of ['↻ 0:00', '00:00', 'нет связи']) { el.textContent = s; w = Math.max(w, el.offsetWidth); }
-  el.style.minWidth = w + 'px'; el.textContent = t; fit();
+  const el = $('cTimer'), txt = el.textContent; el.style.minWidth = ''; let w = 0;
+  for (const s of ['↻ 0:00', '00:00', t('нет связи'), '🍅 00:00']) { el.textContent = s; w = Math.max(w, el.offsetWidth); }
+  el.style.minWidth = w + 'px'; el.textContent = txt; fit();
 }
 document.fonts && document.fonts.ready.then(lockWidth);
 let swapTick = 0;
@@ -314,7 +316,7 @@ function applyNotif(msg) {
   render();
   if (S.hidden) return;
   const n = S.unread.length;
-  $('nFrom').textContent = n > 1 ? `${msg.from} и ещё ${n - 1}` : msg.from;
+  $('nFrom').textContent = n > 1 ? t('{0} и ещё {1}', msg.from, n - 1) : msg.from;
   $('nText').textContent = msg.text;
   setView('vNotif'); fx('bump', 500); pop($('dot'), 0);
   clearTimeout(popT);
@@ -335,7 +337,7 @@ function line(pct, kind = '', ms = 1400) {
   clearTimeout(lineT);
   lineT = setTimeout(() => g.classList.remove('on'), ms);
 }
-function applyVolume(v) { v.muted ? line(100, 'muted') : line(v.level); }
+function applyVolume(v) { if (!on('fx_volume')) return; v.muted ? line(100, 'muted') : line(v.level); }
 
 // плашка: короткое сообщение вместо свёрнутого вида; ms = 0 — висит, пока не уберут
 let chipT;
@@ -352,23 +354,65 @@ function chipEnd() {
   if (S.waiting) return showWaiting();
   if (isl.classList.contains('chip')) setView(hover ? 'vFull' : 'vCompact');
 }
-function showWaiting() { chip('Claude ждёт разрешения', '!', 'amber', 0); }
+function showWaiting() { chip(t('Claude ждёт разрешения'), '!', 'amber', 0); }
 
 listen('waiting', e => {
-  const w = !!e.payload;
+  const w = !!e.payload && on('fx_wait');
   if (w === !!S.waiting) return;
   S.waiting = w; render();
   if (w) showWaiting(); else if (isl.classList.contains('chip') && $('vChip').classList.contains('amber')) chipEnd();
 });
-listen('claude-done', () => { if (S.waiting) return; fx('done', 1600); chip('Claude закончил', '✓', 'green', 2600); });
-listen('copied', () => chip('Скопировано', '⧉', 'white', 1300));
-listen('audio-device', e => chip(e.payload, '🎧', 'white', 2600));
+listen('claude-done', () => { if (S.waiting || !on('fx_done')) return; fx('done', 1600); chip(t('Claude закончил'), '✓', 'green', 2600); });
+listen('copied', () => on('fx_copy') && chip(t('Скопировано'), '⧉', 'white', 1300));
+listen('audio-device', e => on('fx_audio') && chip(e.payload, '🎧', 'white', 2600));
 listen('power', e => {
   const p = e.payload;
-  if (p.low) { line(p.pct, 'low', 2600); chip(`Батарея ${p.pct}% — подключи зарядку`, '!', 'red', 3500); }
-  else if (p.charging) { line(p.pct, 'charge', 2600); chip(`Зарядка · ${p.pct}%`, '⚡', 'green', 2600); }
-  else chip(`От батареи · ${p.pct}%`, '🔋', 'white', 2000);
+  if (!on('fx_power')) return;
+  if (p.low) { line(p.pct, 'low', 2600); chip(t('Батарея {0}% — подключи зарядку', p.pct), '!', 'red', 3500); }
+  else if (p.charging) { line(p.pct, 'charge', 2600); chip(t('Зарядка · {0}%', p.pct), '⚡', 'green', 2600); }
+  else chip(t('От батареи · {0}%', p.pct), '🔋', 'white', 2000);
 });
+// раскладка: на мгновение показываем язык
+listen('layout', e => on('fx_layout') && chip(e.payload, '⌨', 'white', 900));
+
+// камера и микрофон: точка на острове, пока используются; плашка — в момент включения
+let priv = { cam: false, mic: false };
+listen('privacy', e => {
+  const p = e.payload, d = $('pdot'), show = on('fx_privacy');
+  d.className = 'pdot' + (show && p.cam ? ' cam' : show && p.mic ? ' mic' : '');
+  if (show && p.cam && !priv.cam) chip(t('Камера · {0}', p.app), '●', 'green', 2200);
+  else if (show && p.mic && !priv.mic && !p.cam) chip(t('Микрофон · {0}', p.app), '●', 'amber', 2200);
+  priv = p; fit();
+});
+
+// помодоро: кнопка ⏱ в карточке; обратный отсчёт заменяет часы в свёрнутом виде
+let pomoT;
+function pomoToggle() {
+  clearTimeout(pomoT);
+  if (S.pomoEnd) { S.pomoEnd = 0; chip(t('Таймер остановлен'), '⏱', 'white', 1400); }
+  else {
+    S.pomoEnd = Date.now() + CFG.pomo * 60e3;
+    pomoT = setTimeout(pomoDone, CFG.pomo * 60e3);
+    setView('vCompact'); chip(t('Помодоро · {0} мин', CFG.pomo), '🍅', 'red', 1600);
+  }
+  isl.classList.toggle('pomo', !!S.pomoEnd); render();
+}
+function pomoDone() {
+  S.pomoEnd = 0; isl.classList.remove('pomo'); render();
+  fx('done', 1600); chip(t('Время вышло — сделай перерыв'), '🍅', 'green', 6000); beep();
+}
+function beep() {
+  try {
+    const a = new AudioContext(), o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = 880; g.gain.setValueAtTime(.0001, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(.15, a.currentTime + .02); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .6);
+    o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + .65);
+  } catch {}
+}
+$('bTimer').onclick = e => { e.stopPropagation(); pomoToggle(); };
+
+listen('update-available', e => chip(t('Доступно обновление {0}', e.payload), '↑', 'white', 4000));
+
 listen('toggle-hide', () => { S.hidden ? unhide() : hide(); });
 
 // перемотка: клик по полоске трека
@@ -392,6 +436,8 @@ function applySettings(c) {
   CFG.warn = c.warn_at || 80; CFG.alarm = c.alarm_at || 95; CFG.swap = Math.max(2, c.swap_secs || 4);
   if (c.opacity != null) document.documentElement.style.setProperty('--island-a', c.opacity);
   $('tMusic').hidden = c.show_music === false; fit(); CFG.tg = c.show_telegram !== false;
+  CFG.fx = c; CFG.pomo = c.pomodoro_min || 25;
+  setLang(c.lang); lockWidth();
   render();
 }
 listen('settings-update', e => applySettings(e.payload));

@@ -88,6 +88,7 @@ pub fn fetch(key: &str, org: &mut Option<String>) -> Usage {
 pub fn start(app: AppHandle, poke: Receiver<()>) {
     std::thread::spawn(move || {
         let mut org = None;
+        let mut last_err = String::new();
         loop {
             let st = app.state::<AppState>();
             let secs = st.settings.lock().unwrap().poll_secs.clamp(10, 900);
@@ -95,6 +96,10 @@ pub fn start(app: AppHandle, poke: Receiver<()>) {
                 Some(key) => fetch(&key, &mut org),
                 None => fail("Вставь ключ сессии в настройках"),
             };
+            if u.error != last_err {
+                if !u.error.is_empty() { crate::ilog!("лимиты: {}", u.error); }
+                last_err = u.error.clone();
+            }
             let _ = app.emit("usage-update", &u);
             let _ = poke.recv_timeout(Duration::from_secs(secs));
             while poke.try_recv().is_ok() {}

@@ -22,6 +22,24 @@ pub struct Settings {
     pub autostart: bool,
     /// black | glass
     pub theme: String,
+    /// auto | ru | en
+    pub lang: String,
+    /// сочетание в формате tauri (super+alt+KeyC); пусто — выключено
+    pub hotkey: String,
+    /// отдельные эффекты острова
+    pub fx_volume: bool,
+    pub fx_copy: bool,
+    pub fx_power: bool,
+    pub fx_audio: bool,
+    pub fx_done: bool,
+    pub fx_wait: bool,
+    pub fx_layout: bool,
+    pub fx_privacy: bool,
+    /// прятать остров, пока открыто полноэкранное приложение
+    pub hide_fullscreen: bool,
+    /// длительность помодоро, мин
+    pub pomodoro_min: u32,
+    pub auto_update: bool,
 }
 
 impl Default for Settings {
@@ -39,6 +57,19 @@ impl Default for Settings {
             poll_secs: 60,
             autostart: false,
             theme: "black".into(),
+            lang: "auto".into(),
+            hotkey: "super+alt+KeyC".into(),
+            fx_volume: true,
+            fx_copy: true,
+            fx_power: true,
+            fx_audio: true,
+            fx_done: true,
+            fx_wait: true,
+            fx_layout: true,
+            fx_privacy: true,
+            hide_fullscreen: true,
+            pomodoro_min: 25,
+            auto_update: true,
         }
     }
 }

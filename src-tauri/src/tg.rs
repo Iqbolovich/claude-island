@@ -42,7 +42,7 @@ fn read(l: &Listener) -> windows::core::Result<Vec<(u32, Msg)>> {
             .and_then(|d| d.DisplayName())
             .map(|s| s.to_string())
             .unwrap_or_default();
-        DBG.with(|d| { if d.borrow_mut().insert(name.clone()) { eprintln!("[tg] приложение в уведомлениях: {name}"); } });
+        DBG.with(|d| { if d.borrow_mut().insert(name.clone()) { crate::ilog!("[tg] приложение в уведомлениях: {name}"); } });
         if !name.to_lowercase().contains("telegram") {
             continue;
         }
@@ -72,7 +72,7 @@ pub fn start(app: AppHandle) {
             // Windows один раз спросит разрешение на доступ к уведомлениям
             access = l.RequestAccessAsync().and_then(|op| op.get()).unwrap_or(Access::Denied);
         }
-        eprintln!("[tg] доступ к уведомлениям: {:?}", access.0);
+        crate::ilog!("[tg] доступ к уведомлениям: {:?}", access.0);
         let mut last = State::default();
         let mut seen: HashSet<u32> = HashSet::new();
         let mut first = true;
@@ -83,7 +83,7 @@ pub fn start(app: AppHandle) {
             let mut st = State { status: "off".into(), items: vec![] };
             if on && access == Access::Allowed {
                 st.status = "ok".into();
-                let got = match read(&l) { Ok(g) => g, Err(e) => { eprintln!("[tg] ошибка чтения: {e}"); vec![] } };
+                let got = match read(&l) { Ok(g) => g, Err(e) => { crate::ilog!("[tg] ошибка чтения: {e}"); vec![] } };
                 *IDS.lock().unwrap() = got.iter().map(|(id, _)| *id).collect();
                 for (id, m) in &got {
                     // при запуске старые уведомления не «выстреливают»

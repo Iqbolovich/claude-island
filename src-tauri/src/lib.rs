@@ -1,4 +1,7 @@
-﻿#[cfg(windows)]
+﻿#[macro_use]
+pub mod log;
+mod hooks;
+#[cfg(windows)]
 mod chatwatch;
 #[cfg(windows)]
 mod media;
@@ -183,11 +186,12 @@ fn get_settings(state: tauri::State<AppState>) -> Settings {
 }
 
 #[tauri::command]
-fn save_settings(app: AppHandle, state: tauri::State<AppState>, s: Settings) {
-    {
+fn save_settings(app: AppHandle, state: tauri::State<AppState>, s: Settings) -> Result<(), String> {
+    let old_hk = {
         let mut cur = state.settings.lock().unwrap();
-        *cur = s.clone();
-    }
+        std::mem::replace(&mut *cur, s.clone()).hotkey
+    };
+    let hk = if old_hk != s.hotkey { apply_hotkey(&app, &s.hotkey) } else { Ok(()) };
     let _ = settings::save(&state.config_dir, &s);
     set_autostart(s.autostart);
     let _ = state.poke.lock().unwrap().send(());
@@ -198,8 +202,21 @@ fn save_settings(app: AppHandle, state: tauri::State<AppState>, s: Settings) {
             .map(|x| x.to_logical::<f64>(sf))
             .unwrap_or(LogicalSize::new(250.0, 38.0));
         place(&win, &s.pos, size.width, size.height, (s.free_x, s.free_y));
-        let _ = win.emit("settings-update", &s);
     }
+    let _ = app.emit("settings-update", &s);
+    hk
+}
+
+/// Перерегистрирует горячую клавишу. Ошибка — если сочетание занято другой программой.
+fn apply_hotkey(app: &AppHandle, hk: &str) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let gs = app.global_shortcut();
+    let _ = gs.unregister_all();
+    if hk.is_empty() { return Ok(()); }
+    gs.register(hk).map_err(|e| {
+        ilog!("горячая клавиша {hk}: {e}");
+        "busy".to_string()
+    })
 }
 
 /// Команда обязана быть async: синхронная команда на Windows создаёт окно
@@ -309,11 +326,89 @@ fn mark_tg_read() {
 /* ---------------- запуск ---------------- */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn hook(mode: &str) {
+    hooks::run(mode);
+}
+
+#[derive(serde::Serialize)]
+struct HookState { on: bool, current: bool }
+
+#[tauri::command]
+fn hooks_status() -> HookState {
+    let (on, current) = hooks::status();
+    HookState { on, current }
+}
+
+#[tauri::command]
+fn set_hooks(on: bool) -> Result<(), String> {
+    let r = hooks::install(on);
+    if let Err(e) = &r { ilog!("хуки: {e}"); }
+    r
+}
+
+#[tauri::command]
+fn open_log(app: AppHandle) {
+    use tauri_plugin_opener::OpenerExt;
+    if let Some(p) = log::path() {
+        let _ = app.opener().reveal_item_in_dir(p);
+    }
+}
+
+/// Проверка обновлений: при запуске и раз в 6 часов. Найдено — сообщаем острову и настройкам.
+fn watch_updates(app: AppHandle) {
+    use tauri_plugin_updater::UpdaterExt;
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let on = app.state::<AppState>().settings.lock().unwrap().auto_update;
+            if on {
+                match app.updater() {
+                    Ok(u) => match u.check().await {
+                        Ok(Some(up)) => { let _ = app.emit("update-available", up.version.clone()); }
+                        Ok(None) => {}
+                        Err(e) => ilog!("обновления: {e}"),
+                    },
+                    Err(e) => ilog!("обновления: {e}"),
+                }
+            }
+            tokio_sleep(6 * 3600).await;
+        }
+    });
+}
+
+async fn tokio_sleep(secs: u64) {
+    let (tx, rx) = tauri::async_runtime::channel::<()>(1);
+    std::thread::spawn(move || { std::thread::sleep(std::time::Duration::from_secs(secs)); let _ = tx.blocking_send(()); });
+    let mut rx = rx;
+    let _ = rx.recv().await;
+}
+
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let up = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| { ilog!("обновления: {e}"); e.to_string() })?;
+    Ok(up.map(|u| u.version))
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let Some(up) = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())? else {
+        return Err("none".into());
+    };
+    ilog!("ставлю обновление {}", up.version);
+    up.download_and_install(|_, _| {}, || {}).await.map_err(|e| { ilog!("обновление не встало: {e}"); e.to_string() })?;
+    app.restart();
+}
+
+#[tauri::command]
+fn app_version() -> &'static str { env!("CARGO_PKG_VERSION") }
+
 pub fn run() {
     tauri::Builder::default()
         // второй запуск (ярлык + автозапуск) не плодит второй остров, а открывает настройки
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_settings(app)))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _sc, ev| {
@@ -325,6 +420,8 @@ pub fn run() {
         )
         .setup(|app| {
             let config_dir = app.path().app_config_dir().unwrap_or_default();
+            log::init(&config_dir);
+            hooks::refresh();
             let s = settings::load(&config_dir);
             let (tx, rx) = channel();
             app.manage(AppState {
@@ -357,17 +454,23 @@ pub fn run() {
             volume::start(app.handle().clone());
             #[cfg(windows)]
             sys::start(app.handle().clone());
-            {
-                use tauri_plugin_global_shortcut::GlobalShortcutExt;
-                // Win+Alt+C — показать/спрятать остров (Win+Shift+C в Windows уже занято)
-                let _ = app.global_shortcut().register("super+alt+KeyC");
-            }
+            watch_updates(app.handle().clone());
+            // горячая клавиша «показать/спрятать» (по умолчанию Win+Alt+C)
+            let hk = app.state::<AppState>().settings.lock().unwrap().hotkey.clone();
+            let _ = apply_hotkey(app.handle(), &hk);
             #[cfg(windows)]
             tg::start(app.handle().clone());
 
-            let i_settings = MenuItem::with_id(app, "settings", "Настройки", true, None::<&str>)?;
-            let i_toggle = MenuItem::with_id(app, "toggle", "Скрыть / показать", true, None::<&str>)?;
-            let i_quit = MenuItem::with_id(app, "quit", "Выход", true, None::<&str>)?;
+            let lang = app.state::<AppState>().settings.lock().unwrap().lang.clone();
+            #[cfg(windows)]
+            let sys_ru = unsafe { windows::Win32::Globalization::GetUserDefaultUILanguage() } & 0x3ff == 0x19;
+            #[cfg(not(windows))]
+            let sys_ru = true;
+            let en = lang == "en" || (lang != "ru" && !sys_ru);
+            let tr = |ru: &'static str, e: &'static str| if en { e } else { ru };
+            let i_settings = MenuItem::with_id(app, "settings", tr("Настройки", "Settings"), true, None::<&str>)?;
+            let i_toggle = MenuItem::with_id(app, "toggle", tr("Скрыть / показать", "Hide / show"), true, None::<&str>)?;
+            let i_quit = MenuItem::with_id(app, "quit", tr("Выход", "Quit"), true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&i_settings, &i_toggle, &i_quit])?;
 
             let mut tray = TrayIconBuilder::new().tooltip("Claude Island").menu(&menu);
@@ -390,6 +493,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             cursor_inside,
+            check_update,
+            install_update,
+            app_version,
+            hooks_status,
+            set_hooks,
+            open_log,
             set_island_size,
             get_settings,
             save_settings,

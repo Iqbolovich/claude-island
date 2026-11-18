@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Claude Island — настройки</title>
+<script src="i18n.js"></script>
 <style>
 :root{--bg:#1c1c1c;--card:#262626;--edge:#333;--fg:#f0f0f0;--mute:#8e8e8e;--acc:#d97757;--ok:#34c759;--bad:#ff453a;
   --font:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color-scheme:dark}
@@ -10,6 +11,7 @@
 body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 var(--font);padding:18px 20px 70px;user-select:none}
 h1{font-size:17px;margin:0 0 14px;display:flex;align-items:center;gap:9px}
 h1 i{width:18px;height:18px;border-radius:5px;background:var(--acc);display:inline-block}
+h1 small{margin-left:auto;font-size:11px;color:var(--mute);font-weight:400}
 h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:18px 0 7px;font-weight:600}
 .card{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:4px 14px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--edge)}
@@ -22,101 +24,193 @@ input:focus,select:focus{border-color:var(--acc)}
 input[type=number]{width:72px;text-align:right}
 .key{display:flex;gap:6px;padding:10px 0}
 .key input{flex:1;min-width:0}
-button{background:#333;border:1px solid #3d3d3d;border-radius:8px;padding:6px 12px;cursor:pointer}
+button{background:#333;border:1px solid #3d3d3d;border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap}
 button:hover{background:#3b3b3b}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 button.pri:hover{filter:brightness(1.08)}
-#keyStatus{font-size:12px;padding:0 0 10px;color:var(--mute)}
-#keyStatus.ok{color:var(--ok)}#keyStatus.bad{color:var(--bad)}
+.st{font-size:12px;color:var(--mute)}
+.st.ok{color:var(--ok)}.st.bad{color:var(--bad)}
+#keyStatus{padding:0 0 10px}
 input[type=range]{width:150px;accent-color:var(--acc)}
 input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc)}
 details{color:var(--mute);font-size:12px;padding:0 0 10px}
 details ol{margin:6px 0 0;padding-left:18px}
+#hotkey{width:150px;text-align:center;cursor:pointer;caret-color:transparent}
+#hotkey.rec{border-color:var(--acc);color:var(--acc)}
+.pair{display:flex;align-items:center;gap:8px}
 footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:var(--bg);border-top:1px solid var(--edge);display:flex;justify-content:space-between;align-items:center}
 #saved{color:var(--ok);font-size:12px;opacity:0;transition:opacity .3s}
 </style>
 </head>
 <body>
-<h1><i></i>Claude Island</h1>
+<h1><i></i>Claude Island <small id="ver"></small></h1>
 
-<h2>Лимиты Claude</h2>
+<h2 data-t>Лимиты Claude</h2>
 <div class="card">
-  <div class="key"><input id="key" type="password" placeholder="sk-ant-sid01-…" autocomplete="off" spellcheck="false"><button class="pri" id="keySave">Сохранить</button></div>
-  <div id="keyStatus">Ключ не задан</div>
-  <details><summary>Где взять ключ сессии</summary>
-    <ol><li>Открой claude.ai в браузере и войди.</li><li>F12 → Application → Cookies → https://claude.ai.</li><li>Скопируй значение <b>sessionKey</b> и вставь сюда.</li></ol>
-    Ключ хранится только на этом компьютере, зашифрованным средствами Windows.
+  <div class="key"><input id="key" type="password" placeholder="sk-ant-sid01-…" autocomplete="off" spellcheck="false"><button class="pri" id="keySave" data-t>Сохранить</button></div>
+  <div id="keyStatus" class="st"></div>
+  <details><summary data-t>Где взять ключ сессии</summary>
+    <ol><li data-t>Открой claude.ai в браузере и войди.</li><li data-t>F12 → Application → Cookies → https://claude.ai.</li><li data-t>Скопируй значение sessionKey и вставь сюда.</li></ol>
+    <span data-t>Ключ хранится только на этом компьютере, зашифрованным средствами Windows.</span>
   </details>
-  <div class="row"><label for="poll">Обновлять каждые, сек</label><input id="poll" type="number" min="10" max="900" step="5"></div>
-  <div class="row"><label for="warn">Жёлтый порог, %</label><input id="warn" type="number" min="10" max="99"></div>
-  <div class="row"><label for="alarm">Красный порог, %</label><input id="alarm" type="number" min="10" max="100"></div>
+  <div class="row"><label for="poll" data-t>Обновлять каждые, сек</label><input id="poll" type="number" min="10" max="900" step="5"></div>
+  <div class="row"><label for="warn" data-t>Жёлтый порог, %</label><input id="warn" type="number" min="10" max="99"></div>
+  <div class="row"><label for="alarm" data-t>Красный порог, %</label><input id="alarm" type="number" min="10" max="100"></div>
 </div>
 
-<h2>Остров</h2>
+<h2>Claude Code</h2>
 <div class="card">
-  <div class="row"><label for="pos">Положение</label>
-    <select id="pos"><option value="tl">Сверху слева</option><option value="tc">Сверху по центру</option><option value="tr">Сверху справа</option><option value="bl">Снизу слева</option><option value="bc">Снизу по центру</option><option value="br">Снизу справа</option></select></div>
-  <div class="row"><label for="theme">Тема</label>
-    <select id="theme"><option value="black">Чёрная</option><option value="glass">Стекло</option></select></div>
-  <div class="row" id="opRow"><label for="opacity">Прозрачность стекла</label><input id="opacity" type="range" min=".25" max=".9" step=".05"></div>
-  <div class="row"><label for="swap">Таймер ↔ часы, сек</label><input id="swap" type="number" min="2" max="30"></div>
-  <div class="row"><label for="music">Музыка</label><input id="music" type="checkbox"></div>
+  <div class="row"><span id="hookSt" class="st"></span><button id="hookBtn"></button></div>
+  <div class="hint" data-t>Остров покажет, когда Claude Code думает, закончил или ждёт разрешения. Работает в новых сессиях.</div>
+</div>
+
+<h2 data-t>Остров</h2>
+<div class="card">
+  <div class="row"><label for="lang" data-t>Язык</label>
+    <select id="lang"><option value="auto" data-t>Как в Windows</option><option value="ru">Русский</option><option value="en">English</option></select></div>
+  <div class="row"><label for="pos" data-t>Положение</label>
+    <select id="pos"><option value="tl" data-t>Сверху слева</option><option value="tc" data-t>Сверху по центру</option><option value="tr" data-t>Сверху справа</option><option value="bl" data-t>Снизу слева</option><option value="bc" data-t>Снизу по центру</option><option value="br" data-t>Снизу справа</option></select></div>
+  <div class="row"><label for="theme" data-t>Тема</label>
+    <select id="theme"><option value="black" data-t>Чёрная</option><option value="glass" data-t>Стекло</option></select></div>
+  <div class="row" id="opRow"><label for="opacity" data-t>Прозрачность стекла</label><input id="opacity" type="range" min=".25" max=".9" step=".05"></div>
+  <div class="row"><label for="swap" data-t>Таймер ↔ часы, сек</label><input id="swap" type="number" min="2" max="30"></div>
+  <div class="row"><label for="pomo" data-t>Помодоро, мин</label><input id="pomo" type="number" min="1" max="180"></div>
+  <div class="row"><label for="fullscreen" data-t>Прятать в полноэкранных приложениях</label><input id="fullscreen" type="checkbox"></div>
+</div>
+
+<h2 data-t>Показывать на острове</h2>
+<div class="card">
+  <div class="row"><label for="music" data-t>Музыка</label><input id="music" type="checkbox"></div>
   <div class="row"><label for="tg">Telegram</label><input id="tg" type="checkbox"></div>
+  <div class="row"><label for="fx_done" data-t>Claude закончил ответ</label><input id="fx_done" type="checkbox"></div>
+  <div class="row"><label for="fx_wait" data-t>Claude ждёт разрешения (Code)</label><input id="fx_wait" type="checkbox"></div>
+  <div class="row"><label for="fx_volume" data-t>Громкость</label><input id="fx_volume" type="checkbox"></div>
+  <div class="row"><label for="fx_layout" data-t>Раскладка RU/EN</label><input id="fx_layout" type="checkbox"></div>
+  <div class="row"><label for="fx_privacy" data-t>Камера и микрофон</label><input id="fx_privacy" type="checkbox"></div>
+  <div class="row"><label for="fx_copy" data-t>Скопировано в буфер</label><input id="fx_copy" type="checkbox"></div>
+  <div class="row"><label for="fx_power" data-t>Зарядка и батарея</label><input id="fx_power" type="checkbox"></div>
+  <div class="row"><label for="fx_audio" data-t>Смена наушников и колонок</label><input id="fx_audio" type="checkbox"></div>
 </div>
 
-<h2>Система</h2>
+<h2 data-t>Система</h2>
 <div class="card">
-  <div class="row"><label for="auto">Запускать вместе с Windows</label><input id="auto" type="checkbox"></div>
+  <div class="row"><label for="auto" data-t>Запускать вместе с Windows</label><input id="auto" type="checkbox"></div>
+  <div class="row"><label for="hotkey" data-t>Показать/спрятать остров</label>
+    <div class="pair"><input id="hotkey" type="text" readonly><button id="hkClear">✕</button></div></div>
+  <div class="hint st bad" id="hkErr" hidden data-t>Сочетание занято другой программой</div>
+  <div class="row"><label for="upd" data-t>Проверять обновления</label><input id="upd" type="checkbox"></div>
+  <div class="row"><span id="updSt" class="st"></span><button id="updBtn">Проверить</button></div>
+  <div class="row"><label data-t>Журнал ошибок</label><button id="logBtn" data-t>Открыть</button></div>
 </div>
 
-<footer><span id="saved">✓ Сохранено</span><button class="pri" id="save">Применить</button></footer>
+<footer><span id="saved" data-t>✓ Сохранено</span><button class="pri" id="save" data-t>Применить</button></footer>
 
 <script>
 const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
 const $ = id => document.getElementById(id);
-let cur = {};
+const FX = ['fx_done', 'fx_wait', 'fx_volume', 'fx_layout', 'fx_privacy', 'fx_copy', 'fx_power', 'fx_audio'];
+let cur = {}, hk = '', newVer = '';
 
-function status(text, cls) { const s = $('keyStatus'); s.textContent = text; s.className = cls || ''; }
+function st(id, text, cls) { const s = $(id); s.textContent = text; s.className = 'st ' + (cls || ''); }
+
+// «super+alt+KeyC» ⇄ «Win+Alt+C»
+const pretty = h => !h ? t('нет') : h.split('+').map(p => ({ super: 'Win', control: 'Ctrl', alt: 'Alt', shift: 'Shift' }[p] || p.replace(/^Key|^Digit/, ''))).join('+');
 
 async function load() {
   cur = await invoke('get_settings');
+  setLang(cur.lang);
+  $('ver').textContent = t('Версия {0}', await invoke('app_version'));
   $('poll').value = cur.poll_secs; $('warn').value = cur.warn_at; $('alarm').value = cur.alarm_at;
   $('pos').value = cur.pos === 'free' ? 'tc' : cur.pos; $('opacity').value = cur.opacity; $('swap').value = cur.swap_secs;
   $('music').checked = cur.show_music; $('tg').checked = cur.show_telegram; $('auto').checked = cur.autostart;
-  $('theme').value = cur.theme || 'black'; syncTheme();
-  if (await invoke('has_session_key')) status('Ключ сохранён и зашифрован', 'ok');
+  $('theme').value = cur.theme || 'black'; $('lang').value = cur.lang || 'auto'; $('pomo').value = cur.pomodoro_min;
+  $('fullscreen').checked = cur.hide_fullscreen; $('upd').checked = cur.auto_update;
+  FX.forEach(k => $(k).checked = cur[k] !== false);
+  hk = cur.hotkey || ''; $('hotkey').value = pretty(hk);
+  syncTheme(); hooks();
+  if (!newVer) $('updBtn').textContent = t('Проверить');
+  (await invoke('has_session_key')) ? st('keyStatus', t('Ключ сохранён и зашифрован'), 'ok') : st('keyStatus', t('Ключ не задан'));
 }
 
 function collect() {
   const n = (id, lo, hi) => Math.min(hi, Math.max(lo, Math.round(+$(id).value || lo)));
   const warn = n('warn', 10, 99);
-  return { ...cur, poll_secs: n('poll', 10, 900), warn_at: warn, alarm_at: Math.max(warn + 1, n('alarm', 10, 100)),
-    pos: $('pos').value, opacity: +$('opacity').value, swap_secs: n('swap', 2, 30),
-    show_music: $('music').checked, show_telegram: $('tg').checked, autostart: $('auto').checked, theme: $('theme').value };
+  const o = { ...cur, poll_secs: n('poll', 10, 900), warn_at: warn, alarm_at: Math.max(warn + 1, n('alarm', 10, 100)),
+    pos: $('pos').value, opacity: +$('opacity').value, swap_secs: n('swap', 2, 30), pomodoro_min: n('pomo', 1, 180),
+    show_music: $('music').checked, show_telegram: $('tg').checked, autostart: $('auto').checked, theme: $('theme').value,
+    lang: $('lang').value, hide_fullscreen: $('fullscreen').checked, auto_update: $('upd').checked, hotkey: hk };
+  FX.forEach(k => o[k] = $(k).checked);
+  return o;
 }
 
 async function save() {
-  cur = collect(); await invoke('save_settings', { s: cur });
+  cur = collect();
+  try { await invoke('save_settings', { s: cur }); $('hkErr').hidden = true; }
+  catch (e) { $('hkErr').hidden = false; }
+  setLang(cur.lang); $('hotkey').value = pretty(hk);
   $('saved').style.opacity = 1; setTimeout(() => $('saved').style.opacity = 0, 1500);
 }
 
 $('save').onclick = save;
-// положение и прозрачность видно сразу — применяем без кнопки
 // прозрачность имеет смысл только у стекла
 function syncTheme() { $('opRow').style.display = $('theme').value === 'glass' ? '' : 'none'; }
 $('theme').addEventListener('input', syncTheme);
-['pos', 'theme', 'opacity', 'music', 'tg'].forEach(id => $(id).addEventListener('input', save));
+// то, что видно сразу, применяем без кнопки
+['pos', 'theme', 'opacity', 'music', 'tg', 'lang', 'fullscreen', 'upd', ...FX].forEach(id => $(id).addEventListener('input', save));
+
+/* горячая клавиша: клик по полю — запись, нажми сочетание */
+$('hotkey').onclick = () => { $('hotkey').classList.add('rec'); $('hotkey').value = t('Нажми сочетание…'); };
+$('hotkey').addEventListener('blur', () => { $('hotkey').classList.remove('rec'); $('hotkey').value = pretty(hk); });
+$('hotkey').addEventListener('keydown', e => {
+  if (!$('hotkey').classList.contains('rec')) return;
+  e.preventDefault();
+  if (e.key === 'Escape') return $('hotkey').blur();
+  if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+  const m = [e.metaKey && 'super', e.ctrlKey && 'control', e.altKey && 'alt', e.shiftKey && 'shift'].filter(Boolean);
+  if (!m.length) return; // без модификатора — слишком легко нажать случайно
+  hk = [...m, e.code].join('+');
+  $('hotkey').classList.remove('rec'); $('hotkey').blur(); save();
+});
+$('hkClear').onclick = () => { hk = ''; save(); };
+
+/* Claude Code */
+async function hooks() {
+  const h = await invoke('hooks_status');
+  st('hookSt', h.on ? t('Подключено') : t('Не подключено'), h.on ? 'ok' : '');
+  $('hookBtn').textContent = h.on ? t('Отключить') : t('Подключить');
+  $('hookBtn').className = h.on ? '' : 'pri';
+  $('hookBtn').dataset.on = h.on ? '1' : '';
+}
+$('hookBtn').onclick = async () => {
+  try { await invoke('set_hooks', { on: !$('hookBtn').dataset.on }); } catch (e) { st('hookSt', t('Ошибка: {0}', e), 'bad'); return; }
+  hooks();
+};
+
+/* обновления */
+$('updBtn').onclick = async () => {
+  if (newVer) { st('updSt', t('Скачиваю…')); try { await invoke('install_update'); } catch (e) { st('updSt', t('Ошибка: {0}', e), 'bad'); } return; }
+  st('updSt', t('Проверяю…'));
+  try {
+    const v = await invoke('check_update');
+    if (v) { newVer = v; st('updSt', t('Доступно обновление {0}', v), 'ok'); $('updBtn').textContent = t('Обновить до {0}', v); $('updBtn').className = 'pri'; }
+    else st('updSt', t('Версия {0} — последняя', await invoke('app_version')), 'ok');
+  } catch { st('updSt', t('Не удалось проверить'), 'bad'); }
+};
+listen('update-available', e => { newVer = e.payload; st('updSt', t('Доступно обновление {0}', e.payload), 'ok'); $('updBtn').textContent = t('Обновить до {0}', e.payload); $('updBtn').className = 'pri'; });
+
+$('logBtn').onclick = () => invoke('open_log');
 
 $('keySave').onclick = async () => {
   const k = $('key').value.trim();
-  status(k ? 'Проверяю…' : 'Удаляю…');
+  st('keyStatus', k ? t('Проверяю…') : t('Удаляю…'));
   try {
     const u = await invoke('set_session_key', { key: k });
     $('key').value = '';
-    if (!k) return status('Ключ удалён');
-    u.ok ? status(`✓ Работает: 5 ч — ${Math.round(u.pct)}%, неделя — ${Math.round(u.week_pct)}%`, 'ok')
-         : status(`Ключ сохранён, но: ${u.error}`, 'bad');
-  } catch (e) { status('Ошибка: ' + e, 'bad'); }
+    if (!k) return st('keyStatus', t('Ключ удалён'));
+    u.ok ? st('keyStatus', t('✓ Работает: 5 ч — {0}%, неделя — {1}%', Math.round(u.pct), Math.round(u.week_pct)), 'ok')
+         : st('keyStatus', t('Ключ сохранён, но: {0}', t(u.error)), 'bad');
+  } catch (e) { st('keyStatus', t('Ошибка: {0}', e), 'bad'); }
 };
 $('key').addEventListener('keydown', e => { if (e.key === 'Enter') $('keySave').click(); });
 
