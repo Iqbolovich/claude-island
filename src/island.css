@@ -227,3 +227,6 @@ html.tauri[data-theme="black"] .tile,html.tauri[data-theme="black"] .forecast{ba
 /* помодоро */
 .island.pomo #cTimer{color:#ff6b5a}
 .island.pomo #bTimer{color:#ff6b5a}
+
+/* громкость на месте часов */
+.island.vol #cTimer{color:#fff;font-weight:600}

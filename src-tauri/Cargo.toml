@@ -1,6 +1,6 @@
 [package]
 name = "claude-island"
-version = "0.2.1"
+version = "0.2.2"
 description = "Claude Island — виджет лимитов Claude в стиле Dynamic Island"
 authors = ["Iqbolovich"]
 edition = "2021"

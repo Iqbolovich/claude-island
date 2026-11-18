@@ -186,6 +186,7 @@ setInterval(render, 1000);
 let clockMode = false;
 // часы показываем всегда, даже без связи: чередуются с таймером или с «нет связи»
 function compactText(left, stale = isl.classList.contains('stale')) {
+  if (S.volUntil > Date.now()) return S.volText;
   if (S.pomoEnd) return '🍅 ' + mmss(Math.max(0, (S.pomoEnd - Date.now()) / 1000));
   if (clockMode) return new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
   return stale ? t('нет связи') : '↻ ' + hm(left);
@@ -193,7 +194,7 @@ function compactText(left, stale = isl.classList.contains('stale')) {
 // ширина фиксируется по самому длинному варианту, чтобы остров не дышал при смене
 function lockWidth() {
   const el = $('cTimer'), txt = el.textContent; el.style.minWidth = ''; let w = 0;
-  for (const s of ['↻ 0:00', '00:00', t('нет связи'), '🍅 00:00']) { el.textContent = s; w = Math.max(w, el.offsetWidth); }
+  for (const s of ['↻ 0:00', '00:00', t('нет связи'), '🍅 00:00', '🔊 100%']) { el.textContent = s; w = Math.max(w, el.offsetWidth); }
   el.style.minWidth = w + 'px'; el.textContent = txt; fit();
 }
 document.fonts && document.fonts.ready.then(lockWidth);
@@ -337,7 +338,17 @@ function line(pct, kind = '', ms = 1400) {
   clearTimeout(lineT);
   lineT = setTimeout(() => g.classList.remove('on'), ms);
 }
-function applyVolume(v) { if (!on('fx_volume')) return; v.muted ? line(100, 'muted') : line(v.level); }
+// громкость: линия по краю + процент на месте часов, пока линия горит
+function applyVolume(v) {
+  if (!on('fx_volume')) return;
+  v.muted ? line(100, 'muted') : line(v.level);
+  S.volText = v.muted || !v.level ? '🔇 0%' : (v.level < 34 ? '🔈 ' : v.level < 67 ? '🔉 ' : '🔊 ') + v.level + '%';
+  S.volUntil = Date.now() + 1400;
+  $('cTimer').textContent = S.volText;
+  isl.classList.add('vol');
+  clearTimeout(applyVolume.t);
+  applyVolume.t = setTimeout(() => { isl.classList.remove('vol'); $('cTimer').textContent = compactText(S.resetAt - Date.now()); }, 1400);
+}
 
 // плашка: короткое сообщение вместо свёрнутого вида; ms = 0 — висит, пока не уберут
 let chipT;
