@@ -29,3 +29,4 @@ release/*.exe
 *.key
 release/*.sig
 release/latest.json
+.claude/

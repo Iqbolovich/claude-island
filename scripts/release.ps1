@@ -20,7 +20,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Сборка не удалась' }
 $src = "src-tauri\target\release\bundle\nsis\Claude Island_${ver}_x64-setup.exe"
 $name = "ClaudeIsland_${ver}_x64-setup.exe"   # без пробелов: GitHub иначе переименует файл
 Copy-Item $src "release\$name" -Force
-Copy-Item $src "release\Claude Island_${ver}_x64-setup.exe" -Force
 Copy-Item "$src.sig" "release\$name.sig" -Force
 
 $latest = [ordered]@{
@@ -32,5 +31,6 @@ $latest = [ordered]@{
     url       = "$repo/releases/download/v$ver/$name"
   } }
 }
-$latest | ConvertTo-Json -Depth 5 | Set-Content 'release\latest.json' -Encoding utf8
+# без BOM: updater разбирает JSON строго и на BOM спотыкается
+[IO.File]::WriteAllText("$root\release\latest.json", ($latest | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 Write-Host "Готово: release\$name, release\$name.sig, release\latest.json (v$ver)"
