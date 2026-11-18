@@ -12,7 +12,7 @@ const MARK: &str = "--hook";
 
 fn base() -> PathBuf {
     let app = std::env::var("APPDATA").unwrap_or_default();
-    PathBuf::from(app).join("com.oligarh.claudeisland")
+    PathBuf::from(app).join("com.iqbolovich.claudeisland")
 }
 
 /// Вызывается из main до запуска окна: делает своё и выходит.

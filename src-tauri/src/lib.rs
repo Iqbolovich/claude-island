@@ -326,6 +326,29 @@ fn mark_tg_read() {
 /* ---------------- запуск ---------------- */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// До 0.2.1 папка настроек называлась com.oligarh.claudeisland — переносим
+/// настройки, ключ сессии и журнал в новую, чтобы обновление ничего не потеряло.
+fn migrate_config(dir: &std::path::Path) {
+    // ветка реестра, которую оставил установщик 0.2.0
+    #[cfg(windows)]
+    unsafe {
+        use windows::Win32::System::Registry::{RegDeleteTreeW, HKEY_CURRENT_USER};
+        let _ = RegDeleteTreeW(HKEY_CURRENT_USER, windows::core::w!(r"Software\oligarh"));
+    }
+    let old = dir.with_file_name("com.oligarh.claudeisland");
+    if !old.is_dir() || dir.join("settings.json").exists() { return; }
+    let _ = std::fs::create_dir_all(dir);
+    for f in ["settings.json", "session.key", "island.log"] {
+        let _ = std::fs::copy(old.join(f), dir.join(f));
+    }
+    // копия удалась — старую папку убираем целиком
+    if dir.join("settings.json").exists() { let _ = std::fs::remove_dir_all(&old); }
+    // и кэш WebView старой версии
+    if let Ok(local) = std::env::var("LOCALAPPDATA") {
+        let _ = std::fs::remove_dir_all(std::path::Path::new(&local).join("com.oligarh.claudeisland"));
+    }
+}
+
 pub fn hook(mode: &str) {
     hooks::run(mode);
 }
@@ -420,6 +443,7 @@ pub fn run() {
         )
         .setup(|app| {
             let config_dir = app.path().app_config_dir().unwrap_or_default();
+            migrate_config(&config_dir);
             log::init(&config_dir);
             hooks::refresh();
             let s = settings::load(&config_dir);

@@ -42,4 +42,4 @@ npm run tauri build
 - Tauri v2, интерфейс — обычные HTML/CSS/JS (`src/`), системная часть — Rust (`src-tauri/src/`).
 - Лимиты: `claude.ai/api/organizations/{id}/usage` с ключом сессии пользователя.
 - Музыка — Windows SMTC, Telegram — `UserNotificationListener`, «Claude думает» в чатах — UI Automation, в Claude Code — хуки, которые вызывают `claude-island.exe --hook on|off|wait`.
-- Журнал ошибок: `%APPDATA%\com.oligarh.claudeisland\island.log`.
+- Журнал ошибок: `%APPDATA%\com.iqbolovich.claudeisland\island.log`.

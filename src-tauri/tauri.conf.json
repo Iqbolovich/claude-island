@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Claude Island",
-  "version": "0.2.0",
-  "identifier": "com.oligarh.claudeisland",
+  "version": "0.2.1",
+  "identifier": "com.iqbolovich.claudeisland",
   "build": {
     "frontendDist": "../src"
   },
