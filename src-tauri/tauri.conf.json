@@ -49,7 +49,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY3ODg1NEFBRkZEMDY1NUIKUldSYlpkRC9xbFNJWnptOE1GbllvRFgxSkdjd3FmUUFvbHR0RmpwQVV5c2duNE9WTm1kUWFnYUEK",
       "endpoints": [
-        "https://github.com/oligarh2050/claude-island/releases/latest/download/latest.json"
+        "https://github.com/Iqbolovich/claude-island/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

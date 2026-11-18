@@ -12,7 +12,7 @@ $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ''
 
 $conf = Get-Content 'src-tauri\tauri.conf.json' -Raw | ConvertFrom-Json
 $ver = $conf.version
-$repo = 'https://github.com/oligarh2050/claude-island'
+$repo = 'https://github.com/Iqbolovich/claude-island'
 
 npm.cmd run tauri build
 if ($LASTEXITCODE -ne 0) { throw 'Сборка не удалась' }
