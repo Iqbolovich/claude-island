@@ -502,7 +502,10 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.on_menu_event(|app, ev| match ev.id.as_ref() {
-                "quit" => app.exit(0),
+                "quit" => {
+                    ilog!("выход: пункт «Выход» в трее");
+                    app.exit(0)
+                }
                 "toggle" => {
                     if let Some(w) = app.get_webview_window("main") {
                         let _ = w.emit("toggle-hidden", ());
@@ -533,6 +536,17 @@ pub fn run() {
             set_session_key,
             refresh_usage
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, ev| match ev {
+            // остров нельзя закрыть случайно (Alt+F4 и т.п.): без окон приложение бы завершилось
+            tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { api, .. }, .. } if label == "main" => {
+                api.prevent_close();
+                ilog!("попытка закрыть остров — оставляем его работать");
+                if let Some(w) = app.get_webview_window("main") { let _ = w.emit("toggle-hidden", ()); }
+            }
+            tauri::RunEvent::ExitRequested { code, .. } => ilog!("запрошен выход, код {code:?}"),
+            tauri::RunEvent::Exit => ilog!("выход"),
+            _ => {}
+        });
 }
