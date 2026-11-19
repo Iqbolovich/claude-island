@@ -140,7 +140,9 @@ html.tauri .stage[data-pos$="c"] .island:not(.open):active{transform:scale(.97)}
 .nview .t{min-width:0;flex:1}
 .nview .t div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
 
-.island:focus-visible{outline:2px solid var(--claude);outline-offset:2px}
+/* обводку фокуса не рисуем: она выходит за капсулу, окно обрезает её по краям,
+   и в углах оставались оранжевые дуги */
+.island:focus,.island:focus-visible{outline:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* ---------- Полировка для приложения ----------
