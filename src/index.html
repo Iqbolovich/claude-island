@@ -10,6 +10,7 @@
 <!-- stage = всё окно. Окно прозрачное и click-through; остров прижат к краю по пресету -->
 <div class="stage" id="stage" data-pos="tc">
   <div class="island" id="island" tabindex="0" aria-label="Claude Island">
+    <div class="mglow" id="mGlow"></div>
     <div class="volglow" id="volGlow"><i id="vFill"></i></div>
 
     <!-- свёрнутый -->
@@ -18,7 +19,6 @@
         <svg class="ring" viewBox="0 0 24 24">
           <circle class="bg" cx="12" cy="12" r="9"/>
           <circle class="fg" id="ringFg" cx="12" cy="12" r="9" stroke-dasharray="56.5" stroke-dashoffset="20"/>
-          <circle class="spin" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="18 82"/>
         </svg>
         <span class="pct num" id="cPct">—</span>
         <span class="pdot" id="pdot"></span>

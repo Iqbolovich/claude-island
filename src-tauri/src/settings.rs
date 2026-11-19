@@ -35,6 +35,7 @@ pub struct Settings {
     pub fx_wait: bool,
     pub fx_layout: bool,
     pub fx_privacy: bool,
+    pub fx_media: bool,
     /// прятать остров, пока открыто полноэкранное приложение
     pub hide_fullscreen: bool,
     /// длительность помодоро, мин
@@ -67,6 +68,7 @@ impl Default for Settings {
             fx_wait: true,
             fx_layout: true,
             fx_privacy: true,
+            fx_media: true,
             hide_fullscreen: true,
             pomodoro_min: 25,
             auto_update: true,

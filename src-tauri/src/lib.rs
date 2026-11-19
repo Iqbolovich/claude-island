@@ -100,6 +100,15 @@ fn tool_window(win: &WebviewWindow) {
             let hwnd = HWND(h.0 as _);
             let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex | WS_EX_TOOLWINDOW.0 as isize);
+            // Windows 11 скругляет окно (≈8 px) и рисует вокруг него рамку. У капсулы радиус
+            // больше, поэтому рамка торчала дугами в четырёх углах. Край рисует сама капсула.
+            use windows::Win32::Graphics::Dwm::{
+                DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+            };
+            let corner = DWMWCP_DONOTROUND;
+            let _ = DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner as *const _ as _, 4);
+            let none: u32 = 0xFFFF_FFFE; // DWMWA_COLOR_NONE
+            let _ = DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &none as *const _ as _, 4);
         }
     }
 }

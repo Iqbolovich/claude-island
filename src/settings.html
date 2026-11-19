@@ -81,6 +81,7 @@ footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:var(-
 <h2 data-t>Показывать на острове</h2>
 <div class="card">
   <div class="row"><label for="music" data-t>Музыка</label><input id="music" type="checkbox"></div>
+  <div class="row"><label for="fx_media" data-t>Свечение при play/pause</label><input id="fx_media" type="checkbox"></div>
   <div class="row"><label for="tg">Telegram</label><input id="tg" type="checkbox"></div>
   <div class="row"><label for="fx_done" data-t>Claude закончил ответ</label><input id="fx_done" type="checkbox"></div>
   <div class="row"><label for="fx_wait" data-t>Claude ждёт разрешения (Code)</label><input id="fx_wait" type="checkbox"></div>
@@ -109,7 +110,7 @@ footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:var(-
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 const $ = id => document.getElementById(id);
-const FX = ['fx_done', 'fx_wait', 'fx_volume', 'fx_layout', 'fx_privacy', 'fx_copy', 'fx_power', 'fx_audio'];
+const FX = ['fx_media', 'fx_done', 'fx_wait', 'fx_volume', 'fx_layout', 'fx_privacy', 'fx_copy', 'fx_power', 'fx_audio'];
 let cur = {}, hk = '', newVer = '';
 
 function st(id, text, cls) { const s = $(id); s.textContent = text; s.className = 'st ' + (cls || ''); }

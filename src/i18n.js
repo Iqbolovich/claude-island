@@ -44,7 +44,7 @@
     'Таймер ↔ часы, сек': 'Timer ↔ clock, sec', 'Музыка': 'Music', 'Язык': 'Language', 'Как в Windows': 'Same as Windows',
     'Прятать в полноэкранных приложениях': 'Hide in full-screen apps',
     'Показывать на острове': 'Show on the island',
-    'Громкость': 'Volume', 'Скопировано в буфер': 'Copied to clipboard', 'Зарядка и батарея': 'Charging and battery',
+    'Громкость': 'Volume', 'Свечение при play/pause': 'Glow on play/pause', 'Скопировано в буфер': 'Copied to clipboard', 'Зарядка и батарея': 'Charging and battery',
     'Смена наушников и колонок': 'Headphones and speakers switch', 'Claude закончил ответ': 'Claude finished replying',
     'Claude ждёт разрешения (Code)': 'Claude needs permission (Code)', 'Раскладка RU/EN': 'Keyboard layout',
     'Камера и микрофон': 'Camera and microphone', 'Помодоро, мин': 'Pomodoro, min',

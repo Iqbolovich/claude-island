@@ -290,11 +290,22 @@ function accentFrom(src) {
   });
 }
 
+// свечение при play/pause: волна идёт от эквалайзера (в свёрнутом виде) или от кнопки ▶ (в карточке)
+function mediaGlow(playing) {
+  if (RM || S.hidden || !on('fx_media')) return;
+  const g = $('mGlow'), src = isl.classList.contains('open') ? $('mPlay') : isl.querySelector('.compact .eq');
+  const r = src && src.getBoundingClientRect(), ir = isl.getBoundingClientRect();
+  g.style.setProperty('--mx', r && r.width ? ((r.left + r.width / 2 - ir.left) / ir.width * 100).toFixed(1) + '%' : '50%');
+  g.className = 'mglow'; void g.offsetWidth;
+  g.className = 'mglow ' + (playing ? 'play' : 'pause');
+}
+
 function applyMedia(m) {
   const changed = m.title && m.title !== S.media.title;
   const coverChanged = (m.cover || '') !== S.media.cover;
   // Яндекс Музыка и др. редко обновляют позицию: точку отсчёта двигаем только когда позиция
   // реально пришла новая (или сменился трек / пауза), иначе повторы событий «замораживали» время
+  if (S.media.has && m.has && m.title === S.media.title && !!m.playing !== S.media.playing) mediaGlow(!!m.playing);
   const o = S.media, same = m.title === o.title && !!m.playing === o.playing && (m.pos || 0) === o.pos;
   S.media = { has: !!m.has, playing: !!m.playing, title: m.title || '', artist: m.artist || '', pos: m.pos || 0, dur: m.dur || 0, cover: m.cover || '', accent: o.accent || '', posAt: same && o.posAt ? o.posAt : Date.now() };
   const cv = $('cover');

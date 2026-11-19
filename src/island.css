@@ -91,14 +91,10 @@ html.tauri .stage[data-pos$="c"] .island:not(.open):active{transform:scale(.97)}
 .eq{display:none}
 .playing .eq,.hasMedia .eq{display:flex}
 .dot{min-width:16px;height:16px;border-radius:8px;background:var(--tg);display:none;font-size:10px;font-weight:700;place-items:center;padding:0 4px}
-.hasUnread .dot{display:grid}
+/* счётчик Telegram в свёрнутом виде не показываем — непрочитанные видны в карточке */
 /* «Claude думает»: по кольцу бежит оранжевая комета, по краю капсулы — блик,
    логотип в карточке мерцает. Всё гаснет плавно, когда ответ готов. */
-.ring .spin{fill:none;stroke-width:3;stroke-linecap:round;stroke:var(--claude);opacity:0;
-  transform-origin:50% 50%;transition:opacity .4s;filter:drop-shadow(0 0 2px var(--claude))}
-.thinking .ring .spin{opacity:1;animation:orbit 1.1s linear infinite}
 .thinking .ring{animation:breathe 1.6s ease-in-out infinite}
-@keyframes orbit{to{transform:rotate(360deg)}}
 /* контур светится равномерно по всей длине и дышит; рисуется внутри капсулы — окно его не обрежет */
 .island::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .5s;
   box-shadow:inset 0 0 0 1.5px rgba(240,164,131,.9),inset 0 0 14px rgba(217,119,87,.45)}
@@ -230,3 +226,16 @@ html.tauri[data-theme="black"] .tile,html.tauri[data-theme="black"] .forecast{ba
 
 /* громкость на месте часов */
 .island.vol #cTimer{color:#fff;font-weight:600}
+
+/* музыка: play — от эквалайзера по капсуле расходится волна цвета обложки и вспыхивает контур;
+   pause — волна сжимается обратно в эквалайзер, контур гаснет серым */
+@property --mr{syntax:'<percentage>';inherits:false;initial-value:0%}
+.mglow{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;--mc:var(--eqc,var(--music));
+  background:radial-gradient(circle at var(--mx,70%) 50%,transparent calc(var(--mr) - 14%),
+    color-mix(in srgb,var(--mc) 45%,transparent) var(--mr),transparent calc(var(--mr) + 14%));
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--mc) 90%,transparent),inset 0 0 18px color-mix(in srgb,var(--mc) 40%,transparent)}
+.mglow.pause{--mc:#9a9aa0}
+.mglow.play{animation:mPlay 1.2s cubic-bezier(.2,.8,.2,1)}
+.mglow.pause{animation:mPause .9s cubic-bezier(.4,0,.6,1)}
+@keyframes mPlay{0%{opacity:0;--mr:0%}15%{opacity:1}100%{opacity:0;--mr:110%}}
+@keyframes mPause{0%{opacity:0;--mr:110%}20%{opacity:.85}100%{opacity:0;--mr:0%}}
