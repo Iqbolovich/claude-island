@@ -10,9 +10,12 @@ use std::path::PathBuf;
 
 const MARK: &str = "--hook";
 
-fn base() -> PathBuf {
-    let app = std::env::var("APPDATA").unwrap_or_default();
-    PathBuf::from(app).join("com.iqbolovich.claudeisland")
+/// Метки «думает/ждёт» лежат в профиле, а не в AppData: AppData у приложений
+/// из Microsoft Store (в том числе Claude) перенаправляется в их собственную папку,
+/// и хук, запущенный из Claude, писал бы туда, где остров их не видит.
+pub fn base() -> PathBuf {
+    let home = std::env::var("USERPROFILE").unwrap_or_default();
+    PathBuf::from(home).join(".claude-island")
 }
 
 /// Вызывается из main до запуска окна: делает своё и выходит.

@@ -459,7 +459,7 @@ pub fn run() {
             if secret::load(&app.state::<AppState>().config_dir).is_none() {
                 show_settings(app.handle());
             }
-            watch_thinking(app.handle().clone(), app.path().app_config_dir().unwrap_or_default().join("thinking"));
+            watch_thinking(app.handle().clone(), hooks::base().join("thinking"));
 
             if let Some(win) = app.get_webview_window("main") {
                 tool_window(&win);
