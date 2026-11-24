@@ -1,21 +1,25 @@
 //! «Claude думает» в чатах приложения Claude: пока идёт ответ, в окне есть кнопка
-//! «Stop». Читаем её через UI Automation (так же, как экранные дикторы) — ~20 мс.
+//! «Stop». Ищем её через UI Automation одним запросом: фильтр «кнопка И имя = Stop…»
+//! выполняется на стороне Claude, и обратно приходит максимум один элемент.
+//! Раньше остров забирал ВСЕ кнопки окна и спрашивал имя каждой отдельным вызовом —
+//! с длинным чатом это сотни межпроцессных вызовов раз в 0,8 с.
 
-use windows::core::{w, VARIANT};
+use windows::core::{w, Interface, VARIANT};
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
 use windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, IUIAutomationCondition, TreeScope_Descendants,
-    UIA_ButtonControlTypeId, UIA_ControlTypePropertyId,
+    UIA_ButtonControlTypeId, UIA_ControlTypePropertyId, UIA_NamePropertyId,
 };
 use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::{FindWindowExW, IsWindowVisible};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowExW, IsIconic, IsWindowVisible};
 
 /// Подписи кнопки остановки в разных версиях и языках интерфейса.
 const STOP: &[&str] = &["Stop", "Stop response", "Stop generating", "Остановить", "Остановить ответ"];
 
 pub struct Watch {
     ua: IUIAutomation,
-    buttons: IUIAutomationCondition,
+    stop_button: IUIAutomationCondition,
 }
 
 impl Watch {
@@ -24,10 +28,16 @@ impl Watch {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
             let ua: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
-            let buttons = ua
+            let button = ua
                 .CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_ButtonControlTypeId.0))
                 .ok()?;
-            Some(Self { ua, buttons })
+            let mut names: Option<IUIAutomationCondition> = None;
+            for n in STOP {
+                let c = ua.CreatePropertyCondition(UIA_NamePropertyId, &VARIANT::from(*n)).ok()?;
+                names = Some(match names { None => c, Some(prev) => ua.CreateOrCondition(&prev, &c).ok()? });
+            }
+            let stop_button = ua.CreateAndCondition(&button, &names?).ok()?;
+            Some(Self { ua, stop_button })
         }
     }
 
@@ -40,7 +50,7 @@ impl Watch {
                     break;
                 }
                 after = h;
-                if IsWindowVisible(h).as_bool() && self.window_busy(h) {
+                if IsWindowVisible(h).as_bool() && !IsIconic(h).as_bool() && !cloaked(h) && self.window_busy(h) {
                     return true;
                 }
             }
@@ -51,15 +61,13 @@ impl Watch {
     fn window_busy(&self, hwnd: HWND) -> bool {
         unsafe {
             let Ok(root) = self.ua.ElementFromHandle(hwnd) else { return false };
-            let Ok(all) = root.FindAll(TreeScope_Descendants, &self.buttons) else { return false };
-            for i in 0..all.Length().unwrap_or(0) {
-                if let Ok(name) = all.GetElement(i).and_then(|e| e.CurrentName()) {
-                    if STOP.contains(&name.to_string().as_str()) {
-                        return true;
-                    }
-                }
-            }
-            false
+            root.FindFirst(TreeScope_Descendants, &self.stop_button).is_ok_and(|e| !e.as_raw().is_null())
         }
     }
+}
+
+/// Окно на другом виртуальном рабочем столе или скрытое системой — не опрашиваем.
+fn cloaked(h: HWND) -> bool {
+    let mut v: u32 = 0;
+    unsafe { DwmGetWindowAttribute(h, DWMWA_CLOAKED, &mut v as *mut u32 as _, 4) }.is_ok() && v != 0
 }

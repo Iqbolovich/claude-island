@@ -3,7 +3,7 @@
 //! и бейдж на острове гаснет.
 
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
@@ -29,13 +29,23 @@ pub struct State {
 
 // id уведомлений Telegram, которые сейчас в центре уведомлений — чтобы убрать их по клику
 thread_local! { static DBG: std::cell::RefCell<HashSet<String>> = std::cell::RefCell::new(HashSet::new()); }
+// Разобранные уведомления по id: имя приложения и текст читаются один раз, а не каждые 1,5 с
+// для всех уведомлений всех приложений в центре уведомлений (их за день набираются десятки).
+thread_local! { static CACHE: std::cell::RefCell<HashMap<u32, Option<Msg>>> = std::cell::RefCell::new(HashMap::new()); }
 static IDS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
 fn read(l: &Listener) -> windows::core::Result<Vec<(u32, Msg)>> {
     let list = l.GetNotificationsAsync(NotificationKinds::Toast)?.get()?;
     let generic = KnownNotificationBindings::ToastGeneric()?;
     let mut out = Vec::new();
+    let mut present = HashSet::new();
     for n in list {
+        let id = n.Id()?;
+        present.insert(id);
+        if let Some(cached) = CACHE.with(|c| c.borrow().get(&id).cloned()) {
+            if let Some(m) = cached { out.push((id, m)); }
+            continue;
+        }
         let name = n
             .AppInfo()
             .and_then(|a| a.DisplayInfo())
@@ -44,9 +54,11 @@ fn read(l: &Listener) -> windows::core::Result<Vec<(u32, Msg)>> {
             .unwrap_or_default();
         DBG.with(|d| { if d.borrow_mut().insert(name.clone()) { crate::ilog!("[tg] приложение в уведомлениях: {name}"); } });
         if !name.to_lowercase().contains("telegram") {
+            CACHE.with(|c| c.borrow_mut().insert(id, None));
             continue;
         }
         let Ok(b) = n.Notification().and_then(|x| x.Visual()).and_then(|v| v.GetBinding(&generic)) else {
+            CACHE.with(|c| c.borrow_mut().insert(id, None));
             continue;
         };
         let texts: Vec<String> = b
@@ -55,8 +67,12 @@ fn read(l: &Listener) -> windows::core::Result<Vec<(u32, Msg)>> {
             .unwrap_or_default();
         let from = texts.first().cloned().unwrap_or_else(|| "Telegram".into());
         let text = texts.get(1..).map(|t| t.join(" ")).unwrap_or_default();
-        out.push((n.Id()?, Msg { from, text }));
+        let m = Msg { from, text };
+        CACHE.with(|c| c.borrow_mut().insert(id, Some(m.clone())));
+        out.push((id, m));
     }
+    // ушедшие из центра уведомлений забываем
+    CACHE.with(|c| c.borrow_mut().retain(|id, _| present.contains(id)));
     // CreationTime у всех есть, но порядок выдачи и так хронологический
     Ok(out)
 }
@@ -76,6 +92,7 @@ pub fn start(app: AppHandle) {
         let mut last = State::default();
         let mut seen: HashSet<u32> = HashSet::new();
         let mut first = true;
+        let mut last_err = String::new();
         let mut tick = 0u32;
         loop {
             tick += 1;
@@ -83,7 +100,15 @@ pub fn start(app: AppHandle) {
             let mut st = State { status: "off".into(), items: vec![] };
             if on && access == Access::Allowed {
                 st.status = "ok".into();
-                let got = match read(&l) { Ok(g) => g, Err(e) => { crate::ilog!("[tg] ошибка чтения: {e}"); vec![] } };
+                let got = match read(&l) {
+                    Ok(g) => { last_err.clear(); g }
+                    Err(e) => {
+                        // одна и та же ошибка пишется в журнал один раз, а не каждые 1,5 с
+                        let s = e.to_string();
+                        if s != last_err { crate::ilog!("[tg] ошибка чтения: {s}"); last_err = s; }
+                        vec![]
+                    }
+                };
                 *IDS.lock().unwrap() = got.iter().map(|(id, _)| *id).collect();
                 for (id, m) in &got {
                     // при запуске старые уведомления не «выстреливают»
@@ -91,6 +116,8 @@ pub fn start(app: AppHandle) {
                         let _ = app.emit("tg-notification", m);
                     }
                 }
+                // помним только то, что ещё в центре уведомлений (раньше набор рос бесконечно)
+                seen.retain(|id| got.iter().any(|(g, _)| g == id));
                 st.items = got.into_iter().map(|(_, m)| m).collect();
                 first = false;
             } else if on {

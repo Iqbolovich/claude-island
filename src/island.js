@@ -45,18 +45,41 @@ new ResizeObserver(fit).observe($('vFull'));
 // Окно приложения равно капсуле: так Windows может размыть под ней рабочий стол (Acrylic),
 // а клики снаружи проходят насквозь сами собой. Пружину рисует CSS, окно за ней следует.
 if (TAURI) document.documentElement.classList.add('tauri');
-let lastSize = '';
-(function trackSize() {
-  if (TAURI) {
-    // окно не сжимается вслед за нажатием (scale < 1) — иначе оно дёргается; «толчок» вверх помещается
-    const b = isl.getBoundingClientRect();
-    const r = { width: Math.max(b.width, isl.offsetWidth), height: Math.max(b.height, isl.offsetHeight) };
-    const rad = parseFloat(getComputedStyle(isl).borderTopLeftRadius) || 22;
-    const key = [r.width, r.height, rad].map(v => Math.round(v)).join(',');
-    if (key !== lastSize) { lastSize = key; invoke('set_island_size', { w: r.width, h: r.height, radius: rad }); }
-  }
-  requestAnimationFrame(trackSize);
-})();
+let lastSize = '', rafUntil = 0, rafOn = false, sizeBusy = false, sizeNext = null;
+// не больше одного запроса в полёте: пока окно применяет размер, копим только самый свежий
+function sendSize(sz) {
+  if (sizeBusy) { sizeNext = sz; return; }
+  sizeBusy = true;
+  invoke('set_island_size', sz).catch(() => {}).finally(() => {
+    sizeBusy = false;
+    if (sizeNext) { const n = sizeNext; sizeNext = null; sendSize(n); }
+  });
+}
+function syncSize() {
+  // окно не сжимается вслед за нажатием (scale < 1) — иначе оно дёргается; «толчок» вверх помещается
+  const b = isl.getBoundingClientRect();
+  const w = Math.round(Math.max(b.width, isl.offsetWidth)), h = Math.round(Math.max(b.height, isl.offsetHeight));
+  const key = w + ',' + h;
+  if (key !== lastSize) { lastSize = key; sendSize({ w, h }); }
+}
+// Раньше размер проверялся 60 раз в секунду всегда — renderer и GPU не засыпали никогда.
+// Теперь цикл крутится только пока капсула меняет размер или «толкается», потом останавливается.
+function kick(ms = 800) {
+  if (!TAURI) return;
+  rafUntil = Math.max(rafUntil, performance.now() + ms);
+  if (!rafOn) { rafOn = true; requestAnimationFrame(sizeLoop); }
+}
+function sizeLoop(t) {
+  syncSize();
+  if (t < rafUntil) requestAnimationFrame(sizeLoop); else rafOn = false;
+}
+if (TAURI) {
+  new ResizeObserver(() => kick(700)).observe(isl);
+  isl.addEventListener('transitionrun', e => { if (e.target === isl) kick(900); });
+  isl.addEventListener('animationstart', e => { if (e.target === isl && !e.pseudoElement) kick(1200); });
+  for (const ev of ['mousedown', 'mouseup']) isl.addEventListener(ev, () => kick(500));
+  kick(1500);
+}
 
 /* ---------- виды ---------- */
 function setView(v) {
@@ -300,21 +323,32 @@ function mediaGlow(playing) {
   g.className = 'mglow ' + (playing ? 'play' : 'pause');
 }
 
+// обложка приходит отдельным событием и только при смене трека; картинку и цвет
+// применяем один раз, а не при каждом обновлении позиции (раньше — каждые 1–5 с)
+let coverId = -1;
+function applyCover(c) {
+  if (!c || c.id === coverId) return;
+  coverId = c.id;
+  S.media.cover = c.cover || '';
+  const cv = $('cover');
+  cv.style.backgroundImage = S.media.cover ? `url(${S.media.cover})` : '';
+  cv.textContent = S.media.cover ? '' : (S.media.title ? S.media.title[0] : '♪');
+  if (S.media.cover) accentFrom(S.media.cover).then(a => { if (a) { S.media.accent = a; isl.style.setProperty('--eqc', a); } });
+  else { S.media.accent = ''; isl.style.removeProperty('--eqc'); }
+}
+listen('media-cover', e => applyCover(e.payload));
+
 function applyMedia(m) {
   const changed = m.title && m.title !== S.media.title;
-  const coverChanged = (m.cover || '') !== S.media.cover;
   // Яндекс Музыка и др. редко обновляют позицию: точку отсчёта двигаем только когда позиция
   // реально пришла новая (или сменился трек / пауза), иначе повторы событий «замораживали» время
   if (S.media.has && m.has && m.title === S.media.title && !!m.playing !== S.media.playing) mediaGlow(!!m.playing);
   const o = S.media, same = m.title === o.title && !!m.playing === o.playing && (m.pos || 0) === o.pos;
-  S.media = { has: !!m.has, playing: !!m.playing, title: m.title || '', artist: m.artist || '', pos: m.pos || 0, dur: m.dur || 0, cover: m.cover || '', accent: o.accent || '', posAt: same && o.posAt ? o.posAt : Date.now() };
+  S.media = { has: !!m.has, playing: !!m.playing, title: m.title || '', artist: m.artist || '', pos: m.pos || 0, dur: m.dur || 0, cover: o.cover || '', accent: o.accent || '', posAt: same && o.posAt ? o.posAt : Date.now() };
   const cv = $('cover');
-  cv.style.backgroundImage = S.media.cover ? `url(${S.media.cover})` : '';
-  cv.textContent = S.media.cover ? '' : (S.media.title ? S.media.title[0] : '♪');
-  if (coverChanged) {
-    if (S.media.cover) accentFrom(S.media.cover).then(a => { if (a) { S.media.accent = a; isl.style.setProperty('--eqc', a); } });
-    else { S.media.accent = ''; isl.style.removeProperty('--eqc'); }
-  }
+  if (!S.media.cover) cv.textContent = S.media.title ? S.media.title[0] : '♪';
+  // обложка пропущена (окно загрузилось позже события) — забираем её сами
+  if (TAURI && m.cover_id !== undefined && m.cover_id !== coverId) invoke('get_media_cover').then(applyCover).catch(() => {});
   if (changed && !RM) {
     cv.animate([{ transform: 'translateX(14px) rotateY(60deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
     $('song').animate([{ transform: 'translateX(10px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 350, easing: 'ease-out' });
@@ -474,7 +508,8 @@ if (!TAURI) {
   document.body.style.background = 'linear-gradient(135deg,#1d2a44,#3b2f5c)';
   let p = 58;
   applyUsage({ ok: true, pct: p, week_pct: 38, reset_at: Date.now() + 83 * 60e3, week_reset_at: Date.now() + 3 * 864e5 });
-  applyMedia({ has: true, playing: true, title: 'Midnight City', artist: 'M83', pos: 57, dur: 244, accent: '#fa2d48' });
+  applyMedia({ has: true, playing: true, title: 'Midnight City', artist: 'M83', pos: 57, dur: 244 });
+  isl.style.setProperty('--eqc', '#fa2d48');
   setInterval(() => { S.media.pos = (S.media.pos + 1) % S.media.dur; S.media.posAt = Date.now(); }, 1000);
   setTimeout(() => applyNotif({ from: 'Аня', text: 'скинь файл когда сможешь' }), 4000);
   setInterval(() => { S.thinking = !S.thinking; render(); }, 6000);   // демо «думает»

@@ -3,6 +3,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use windows::Media::Control::{
@@ -22,8 +23,8 @@ pub struct Media {
     /// секунды
     pub pos: f64,
     pub dur: f64,
-    /// обложка как data-URL, цвет из неё считает фронтенд
-    pub cover: String,
+    /// номер обложки: меняется вместе с картинкой, саму картинку шлём отдельно (media-cover)
+    pub cover_id: u32,
 }
 
 fn snapshot(session: &Session) -> windows::core::Result<Media> {
@@ -48,7 +49,7 @@ fn snapshot(session: &Session) -> windows::core::Result<Media> {
         artist,
         pos: (pos - start).max(0.0),
         dur: (end - start).max(0.0),
-        cover: String::new(),
+        cover_id: 0,
     })
 }
 
@@ -67,11 +68,25 @@ fn read_cover(session: &Session) -> Option<String> {
     Some(format!("data:image/png;base64,{}", STANDARD.encode(&buf)))
 }
 
-fn read_once(cover_key: &mut String, cover_val: &mut String) -> Media {
-    let Ok(mgr) = Manager::RequestAsync().and_then(|op| op.get()) else {
-        return Media::default();
-    };
-    let Ok(session) = mgr.GetCurrentSession() else {
+/// Текущая обложка (номер, data-URL). Картинка весит десятки–сотни КБ, поэтому в окно она
+/// уходит только при смене трека, а не в каждом обновлении раз в секунду, как раньше.
+static COVER: Mutex<(u32, String)> = Mutex::new((0, String::new()));
+
+#[derive(Serialize, Clone)]
+pub struct Cover { pub id: u32, pub cover: String }
+
+pub fn current_cover() -> Cover {
+    let c = COVER.lock().unwrap();
+    Cover { id: c.0, cover: c.1.clone() }
+}
+
+fn read_once(app: &AppHandle, mgr: &mut Option<Manager>, cover_key: &mut String) -> Media {
+    // менеджер SMTC создаём один раз (раньше — каждую секунду, с двумя блокирующими WinRT-вызовами)
+    if mgr.is_none() {
+        *mgr = Manager::RequestAsync().and_then(|op| op.get()).ok();
+    }
+    let Some(m_) = mgr.as_ref() else { return Media::default() };
+    let Ok(session) = m_.GetCurrentSession() else {
         return Media::default();
     };
     let Ok(mut m) = snapshot(&session) else {
@@ -80,9 +95,16 @@ fn read_once(cover_key: &mut String, cover_val: &mut String) -> Media {
     let key = format!("{}|{}", m.title, m.artist);
     if key != *cover_key {
         *cover_key = key;
-        *cover_val = read_cover(&session).unwrap_or_default();
+        let img = read_cover(&session).unwrap_or_default();
+        let cov = {
+            let mut c = COVER.lock().unwrap();
+            c.0 = c.0.wrapping_add(1);
+            c.1 = img;
+            Cover { id: c.0, cover: c.1.clone() }
+        };
+        let _ = app.emit("media-cover", &cov);
     }
-    m.cover = cover_val.clone();
+    m.cover_id = COVER.lock().unwrap().0;
     m
 }
 
@@ -92,11 +114,14 @@ pub fn start(app: AppHandle) {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
         }
         let mut last = Media::default();
-        let (mut key, mut cover) = (String::new(), String::new());
+        let mut key = String::new();
+        let mut mgr: Option<Manager> = None;
         let mut tick = 0u32;
         loop {
             tick += 1;
-            let m = read_once(&mut key, &mut cover);
+            let m = read_once(&app, &mut mgr, &mut key);
+            // менеджер мог «умереть» (перезапуск служб) — раз в минуту берём заново
+            if tick % 60 == 0 { mgr = None; }
             // повтор раз в 5 с: первое событие могло уйти до загрузки интерфейса
             if m != last || tick % 5 == 0 {
                 let _ = app.emit("media-update", &m);

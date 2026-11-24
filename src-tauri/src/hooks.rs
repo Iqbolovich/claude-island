@@ -18,12 +18,25 @@ pub fn base() -> PathBuf {
     PathBuf::from(home).join(".claude-island")
 }
 
+/// Запасной путь: достаём "session_id":"…" прямо из байтов, если JSON целиком не разобрался.
+fn session_id_raw(buf: &[u8]) -> Option<String> {
+    let s = String::from_utf8_lossy(&buf[..buf.len().min(64 * 1024)]);
+    let i = s.find("\"session_id\"")?;
+    let rest = &s[i + 12..];
+    let start = rest.find('"')? + 1;
+    let end = rest[start..].find('"')?;
+    Some(rest[start..start + end].to_string())
+}
+
 /// Вызывается из main до запуска окна: делает своё и выходит.
 pub fn run(mode: &str) {
     let mut buf = Vec::new();
-    let _ = std::io::stdin().take(256 * 1024).read_to_end(&mut buf);
+    // читаем всё: после больших ответов инструментов JSON бывает в мегабайты, а обрезанный
+    // не разбирался — метка ложилась под именем "default", и «думает» висело 15 минут
+    let _ = std::io::stdin().read_to_end(&mut buf);
     let v: Value = serde_json::from_slice(&buf).unwrap_or(Value::Null);
-    let id: String = v["session_id"].as_str().unwrap_or("default")
+    let id: String = v["session_id"].as_str().map(str::to_string)
+        .or_else(|| session_id_raw(&buf)).unwrap_or_else(|| "default".into())
         .chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_').collect();
     let id = if id.is_empty() { "default".into() } else { id };
     let (t, w) = (base().join("thinking"), base().join("waiting"));

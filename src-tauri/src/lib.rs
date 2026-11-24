@@ -38,12 +38,18 @@ pub struct AppState {
 /// Ставит окно по пресету. Сверху остров растёт вниз, снизу — вверх,
 /// поэтому для нижних пресетов y пересчитывается от высоты.
 fn place(win: &WebviewWindow, pos: &str, w: f64, h: f64, free: (f64, f64)) {
+    if let Some((x, y)) = place_xy(win, pos, w, h, free) {
+        let _ = win.set_position(LogicalPosition::new(x, y));
+    }
+}
+
+/// Левый верхний угол окна (логические пиксели) для пресета положения.
+fn place_xy(win: &WebviewWindow, pos: &str, w: f64, h: f64, free: (f64, f64)) -> Option<(f64, f64)> {
     if pos == "free" {
-        let _ = win.set_position(LogicalPosition::new(free.0, free.1));
-        return;
+        return Some(free);
     }
     let Ok(Some(mon)) = win.current_monitor() else {
-        return;
+        return None;
     };
     let sf = mon.scale_factor();
     let ms = mon.size().to_logical::<f64>(sf);
@@ -58,7 +64,7 @@ fn place(win: &WebviewWindow, pos: &str, w: f64, h: f64, free: (f64, f64)) {
     } else {
         mp.y + ms.height - h - 56.0
     };
-    let _ = win.set_position(LogicalPosition::new(x, y));
+    Some((x, y))
 }
 
 /// Скругляет само окно регионом. Размер передаётся явно: set_size применяется
@@ -138,12 +144,13 @@ fn watch_thinking(app: AppHandle, dir: PathBuf) {
         let (mut last, mut last_wait) = (false, false);
         let mut since = std::time::Instant::now();
         #[cfg(windows)]
-        let chat = chatwatch::Watch::new();
+        let chat = if diag_off("chat") { None } else { chatwatch::Watch::new() };
         let (mut tick, mut chat_busy) = (0u32, false);
         loop {
             tick += 1;
             #[cfg(windows)]
-            if tick % 2 == 0 {
+            // чаты Claude проверяем раз в 1,2 с — это межпроцессный запрос к приложению Claude
+            if tick % 3 == 0 {
                 chat_busy = chat.as_ref().is_some_and(|c| c.busy());
             }
             let wait = fresh_marker(&wdir);
@@ -174,7 +181,7 @@ fn watch_thinking(app: AppHandle, dir: PathBuf) {
 /// Окно покадрово повторяет реальный размер капсулы: пружину рисует CSS,
 /// окно лишь следует за её геометрией, поэтому рассинхрона быть не может.
 #[tauri::command]
-fn set_island_size(app: AppHandle, w: f64, h: f64, radius: f64) {
+fn set_island_size(app: AppHandle, w: f64, h: f64) {
     let Some(win) = app.get_webview_window("main") else {
         return;
     };
@@ -183,10 +190,25 @@ fn set_island_size(app: AppHandle, w: f64, h: f64, radius: f64) {
         let s = st.settings.lock().unwrap();
         (s.pos.clone(), (s.free_x, s.free_y))
     };
+    // Размер и положение — одним SetWindowPos. Раньше это были два отдельных вызова на каждом
+    // кадре анимации: окно на миг получало новую ширину на старом месте (рывок вбок),
+    // а WebView2 перестраивался дважды.
+    #[cfg(windows)]
+    if let (Some((x, y)), Ok(h_)) = (place_xy(&win, &pos, w, h, free), win.hwnd()) {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{
+            SetWindowPos, SWP_NOACTIVATE, SWP_NOOWNERZORDER, SWP_NOZORDER,
+        };
+        let sf = win.scale_factor().unwrap_or(1.0);
+        let r = |v: f64| (v * sf).round() as i32;
+        unsafe {
+            let _ = SetWindowPos(HWND(h_.0 as _), HWND::default(), r(x), r(y), r(w), r(h),
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+        }
+        return;
+    }
     let _ = win.set_size(LogicalSize::new(w, h));
     place(&win, &pos, w, h, free);
-    // регион Windows режет углы без сглаживания (ступеньки) — край рисует CSS
-    let _ = radius;
 }
 
 #[tauri::command]
@@ -327,6 +349,14 @@ fn media_control(action: String) {
 }
 
 #[tauri::command]
+fn get_media_cover() -> serde_json::Value {
+    #[cfg(windows)]
+    { serde_json::to_value(media::current_cover()).unwrap_or_default() }
+    #[cfg(not(windows))]
+    serde_json::Value::Null
+}
+
+#[tauri::command]
 fn mark_tg_read() {
     #[cfg(windows)]
     tg::clear();
@@ -356,6 +386,12 @@ fn migrate_config(dir: &std::path::Path) {
     if let Ok(local) = std::env::var("LOCALAPPDATA") {
         let _ = std::fs::remove_dir_all(std::path::Path::new(&local).join("com.oligarh.claudeisland"));
     }
+}
+
+/// Диагностика: CI_OFF=chat,tg,media,sys,volume,usage выключает подсистемы,
+/// чтобы по очереди измерить, какая из них нагружает процессор.
+fn diag_off(name: &str) -> bool {
+    std::env::var("CI_OFF").is_ok_and(|v| v.split(',').any(|x| x.trim() == name || x.trim() == "all"))
 }
 
 pub fn hook(mode: &str) {
@@ -463,7 +499,7 @@ pub fn run() {
                 hidden: AtomicBool::new(false),
                 poke: Mutex::new(tx),
             });
-            usage::start(app.handle().clone(), rx);
+            if !diag_off("usage") { usage::start(app.handle().clone(), rx); }
             // первый запуск без ключа — сразу показываем настройки с инструкцией
             if secret::load(&app.state::<AppState>().config_dir).is_none() {
                 show_settings(app.handle());
@@ -482,17 +518,17 @@ pub fn run() {
             }
 
             #[cfg(windows)]
-            media::start(app.handle().clone());
+            if !diag_off("media") { media::start(app.handle().clone()); }
             #[cfg(windows)]
-            volume::start(app.handle().clone());
+            if !diag_off("volume") { volume::start(app.handle().clone()); }
             #[cfg(windows)]
-            sys::start(app.handle().clone());
+            if !diag_off("sys") { sys::start(app.handle().clone()); }
             watch_updates(app.handle().clone());
             // горячая клавиша «показать/спрятать» (по умолчанию Win+Alt+C)
             let hk = app.state::<AppState>().settings.lock().unwrap().hotkey.clone();
             let _ = apply_hotkey(app.handle(), &hk);
             #[cfg(windows)]
-            tg::start(app.handle().clone());
+            if !diag_off("tg") { tg::start(app.handle().clone()); }
 
             let lang = app.state::<AppState>().settings.lock().unwrap().lang.clone();
             #[cfg(windows)]
@@ -529,6 +565,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             cursor_inside,
+            get_media_cover,
             check_update,
             install_update,
             app_version,

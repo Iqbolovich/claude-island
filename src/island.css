@@ -33,7 +33,6 @@ html.tauri .stage[data-pos$="c"] .island:not(.open):active{transform:scale(.97)}
 .island{background:var(--island);border-radius:22px;overflow:hidden;cursor:pointer;
   width:250px;height:38px;
   transition:width .62s var(--spring),height .62s var(--spring),border-radius .62s var(--spring),opacity .3s,transform .4s var(--spring),box-shadow .5s;
-  -webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);
   border:1px solid var(--edge);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 40px rgba(0,0,0,.35)}
 .island.open{width:400px;border-radius:30px}
 .island.notif{width:360px;height:72px;border-radius:28px}
@@ -44,10 +43,12 @@ html.tauri .stage[data-pos$="c"] .island:not(.open):active{transform:scale(.97)}
 .stage[data-pos$="c"] .island:not(.open):active{transform:translateX(-50%) scale(.97)}
 
 /* смена видов: уходящий растворяется в размытие, приходящий проявляется из него */
-.view{position:absolute;inset:0;opacity:0;pointer-events:none;filter:blur(6px);transform:scale(.94);
-  transition:opacity .16s,filter .16s,transform .2s var(--out)}
-.view.on{opacity:1;pointer-events:auto;filter:none;transform:none;
-  transition:opacity .3s .1s,filter .35s .1s,transform .5s .08s var(--spring)}
+/* после ухода вид становится visibility:hidden — скрытые виды не рисуются вообще (раньше их размытие
+   пересчитывалось на каждом кадре любой анимации) */
+.view{position:absolute;inset:0;opacity:0;pointer-events:none;filter:blur(6px);transform:scale(.94);visibility:hidden;
+  transition:opacity .16s,filter .16s,transform .2s var(--out),visibility 0s linear .22s}
+.view.on{opacity:1;pointer-events:auto;filter:none;transform:none;visibility:visible;
+  transition:opacity .3s .1s,filter .35s .1s,transform .5s .08s var(--spring),visibility 0s}
 /* блоки раскрытого вида выезжают лесенкой */
 .full>*{opacity:0;transform:translateY(-10px) scale(.97);filter:blur(4px);transition:opacity .12s,transform .12s,filter .12s}
 .full.on>*{opacity:1;transform:none;filter:none;
@@ -84,10 +85,11 @@ html.tauri .stage[data-pos$="c"] .island:not(.open):active{transform:scale(.97)}
 .timer{font-size:13px;color:var(--mute);display:inline-block;white-space:nowrap;text-align:right}
 .stale .pct,.stale .timer{color:var(--stale)}
 .eq{display:flex;gap:2px;align-items:flex-end;height:14px}
-.eq i{width:3px;background:var(--eqc,var(--music));border-radius:2px;height:4px;transition:background .4s}
+.eq i{width:3px;background:var(--eqc,var(--music));border-radius:2px;height:14px;transform-origin:50% 100%;transform:scaleY(.29);transition:background .4s}
 .playing .eq i{animation:eq .9s ease-in-out infinite}
 .eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}.eq i:nth-child(4){animation-delay:-.15s}
-@keyframes eq{0%,100%{height:3px}50%{height:14px}}
+/* только transform: высота в анимации заставляла пересчитывать раскладку 60 раз в секунду */
+@keyframes eq{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
 .eq{display:none}
 .playing .eq,.hasMedia .eq{display:flex}
 .dot{min-width:16px;height:16px;border-radius:8px;background:var(--tg);display:none;font-size:10px;font-weight:700;place-items:center;padding:0 4px}
@@ -98,8 +100,9 @@ html.tauri .stage[data-pos$="c"] .island:not(.open):active{transform:scale(.97)}
   box-shadow:inset 0 0 0 1.5px rgba(240,164,131,.9),inset 0 0 14px rgba(217,119,87,.45)}
 .island.thinking::after{animation:thinkGlow 1.8s ease-in-out infinite}
 @keyframes thinkGlow{0%,100%{opacity:.35}50%{opacity:1}}
-.thinking .logo{animation:think 1.4s ease-in-out infinite}
-@keyframes think{50%{transform:scale(.82) rotate(45deg);box-shadow:0 0 12px var(--claude)}}
+/* логотип мерцает только в открытой карточке — в свёрнутом виде его не видно, а анимация шла */
+.open.thinking .logo{animation:think 1.4s ease-in-out infinite}
+@keyframes think{50%{transform:scale(.82) rotate(45deg)}}
 
 /* ---------- Раскрытый вид ---------- */
 .full{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
