@@ -189,15 +189,17 @@ function render() {
   ['mPrev', 'mPlay', 'mNext'].forEach(b => { $(b).disabled = !m.has; });
 
   // telegram
-  const n = S.unread.length;
+  // тексты — из уведомлений Windows; число — ещё и из заголовка окна Telegram (если тосты не работают)
+  const items = S.unread.length, n = Math.max(items, S.tgCount || 0);
   isl.classList.toggle('hasUnread', n > 0);
   // плитка только когда есть что показать (или нужно попросить доступ)
   const tgHide = !CFG.tg || (n === 0 && S.tg !== 'denied');
   if ($('tTg').hidden !== tgHide) { $('tTg').hidden = tgHide; fit(); }
   $('dot').textContent = n;
   $('tgCount').textContent = n ? t('Telegram · {0} непрочит. · клик, чтобы прочитать', n) : 'Telegram';
-  $('msgs').innerHTML = n
+  $('msgs').innerHTML = items
     ? S.unread.slice(-3).reverse().map(x => `<div><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join('')
+    : n ? `<div>${t('Непрочитанных: {0} — открой Telegram, чтобы прочитать', n)}</div>`
     : `<div>${S.tg === 'denied' ? t('Нет доступа к уведомлениям — разреши в Параметрах Windows') : t('Нет новых сообщений')}</div>`;
 
   fit();
@@ -371,7 +373,7 @@ function applyNotif(msg) {
 
 listen('usage-update', e => applyUsage(e.payload));
 listen('media-update', e => applyMedia(e.payload));
-listen('tg-state', e => { S.tg = e.payload.status; S.unread = e.payload.items || []; render(); });
+listen('tg-state', e => { S.tg = e.payload.status; S.unread = e.payload.items || []; S.tgCount = e.payload.count || 0; render(); });
 listen('tg-notification', e => applyNotif(e.payload));
 // светящаяся линия по нижнему краю: громкость (белая), зарядка (зелёная), батарея (красная)
 let lineT;

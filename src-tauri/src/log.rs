@@ -19,6 +19,15 @@ pub fn init(dir: &PathBuf) {
 
 pub fn path() -> Option<PathBuf> { PATH.get().cloned() }
 
+/// Для сторожа: у него нет окна и init не вызывается — пишем в обычный журнал.
+pub fn write_to_default(msg: &str) {
+    if PATH.get().is_none() {
+        let dir = PathBuf::from(std::env::var("APPDATA").unwrap_or_default()).join("com.iqbolovich.claudeisland");
+        let _ = PATH.set(dir.join("island.log"));
+    }
+    write(msg);
+}
+
 pub fn write(msg: &str) {
     let Some(p) = PATH.get() else { return };
     let ts = std::time::SystemTime::now()

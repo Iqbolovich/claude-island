@@ -31,6 +31,15 @@ button.pri:hover{filter:brightness(1.08)}
 .st{font-size:12px;color:var(--mute)}
 .st.ok{color:var(--ok)}.st.bad{color:var(--bad)}
 #keyStatus{padding:0 0 10px}
+.welcome{border-color:var(--acc)}
+.welcome h3{margin:10px 0 4px;font-size:15px}
+.step{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--edge)}
+.step:first-of-type{border-top:0}
+.step .n{width:22px;height:22px;border-radius:50%;background:#333;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.step.done .n{background:var(--ok);color:#000}
+.step label{flex:1}
+.diag div{padding:3px 0}
+.diag .ok{color:var(--ok)}.diag .bad{color:var(--bad)}
 input[type=range]{width:150px;accent-color:var(--acc)}
 input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc)}
 details{color:var(--mute);font-size:12px;padding:0 0 10px}
@@ -45,8 +54,19 @@ footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:var(-
 <body>
 <h1><i></i>Claude Island <small id="ver"></small></h1>
 
+<div class="card welcome" id="welcome" hidden>
+  <h3 data-t>Добро пожаловать!</h3>
+  <div class="hint" data-t>Три шага — и остров готов.</div>
+  <div class="step" id="w1"><span class="n">1</span><label data-t>Войти в claude.ai — остров покажет лимиты</label><button class="pri" id="wLogin" data-t>Войти</button></div>
+  <div class="step" id="w2"><span class="n">2</span><label data-t>Подключить Claude Code (если пользуешься)</label><button id="wHooks" data-t>Подключить</button></div>
+  <div class="step" id="w3"><span class="n">3</span><label data-t>Telegram: проверить уведомления</label><button id="wTg" data-t>Проверить</button></div>
+  <div class="row"><span></span><button id="wDone" data-t>Готово</button></div>
+</div>
+
 <h2 data-t>Лимиты Claude</h2>
 <div class="card">
+  <div class="row"><label data-t>Вход в claude.ai</label><button class="pri" id="login" data-t>Войти</button></div>
+  <div class="hint" data-t>Откроется окно claude.ai — войди как обычно, ключ сохранится сам. Или вставь его вручную:</div>
   <div class="key"><input id="key" type="password" placeholder="sk-ant-sid01-…" autocomplete="off" spellcheck="false"><button class="pri" id="keySave" data-t>Сохранить</button></div>
   <div id="keyStatus" class="st"></div>
   <details><summary data-t>Где взять ключ сессии</summary>
@@ -56,6 +76,21 @@ footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:var(-
   <div class="row"><label for="poll" data-t>Обновлять каждые, сек</label><input id="poll" type="number" min="10" max="900" step="5"></div>
   <div class="row"><label for="warn" data-t>Жёлтый порог, %</label><input id="warn" type="number" min="10" max="99"></div>
   <div class="row"><label for="alarm" data-t>Красный порог, %</label><input id="alarm" type="number" min="10" max="100"></div>
+</div>
+
+<h2>Telegram</h2>
+<div class="card" id="tgCard">
+  <div class="diag" id="tgDiag"></div>
+  <div class="row"><button id="tgCheck" data-t>Проверить</button><button id="tgOpenWin" data-t>Уведомления Windows</button></div>
+  <details><summary data-t>Если сообщения Telegram не появляются</summary>
+    <ol>
+      <li data-t>Telegram Desktop → Настройки → Уведомления и звуки: включи «Уведомления на рабочем столе» и «Использовать уведомления Windows».</li>
+      <li data-t>Там же включи «Показывать текст сообщения», иначе в уведомлении будет только «Новое сообщение».</li>
+      <li data-t>Параметры Windows → Система → Уведомления: уведомления включены, Telegram в списке разрешён, режим «Не беспокоить» выключен.</li>
+      <li data-t>Параметры Windows → Конфиденциальность → Уведомления: доступ приложений к уведомлениям разрешён.</li>
+    </ol>
+    <span data-t>Даже без уведомлений остров покажет число непрочитанных — его видно в заголовке окна Telegram.</span>
+  </details>
 </div>
 
 <h2>Claude Code</h2>
@@ -131,7 +166,14 @@ async function load() {
   hk = cur.hotkey || ''; $('hotkey').value = pretty(hk);
   syncTheme(); hooks();
   if (!newVer) $('updBtn').textContent = t('Проверить');
-  (await invoke('has_session_key')) ? st('keyStatus', t('Ключ сохранён и зашифрован'), 'ok') : st('keyStatus', t('Ключ не задан'));
+  const hasKey = await invoke('has_session_key');
+  hasKey ? st('keyStatus', t('Ключ сохранён и зашифрован'), 'ok') : st('keyStatus', t('Ключ не задан'));
+  $('login').textContent = hasKey ? t('Войти заново') : t('Войти');
+  // приветствие — пока не нажали «Готово» (и пока нет ключа)
+  let welcomed = false; try { welcomed = localStorage.getItem('ci-welcomed') === '1'; } catch {}
+  $('welcome').hidden = welcomed && hasKey;
+  $('w1').classList.toggle('done', hasKey);
+  tgDiag();
 }
 
 function collect() {
@@ -182,6 +224,7 @@ async function hooks() {
   $('hookBtn').textContent = h.on ? t('Отключить') : t('Подключить');
   $('hookBtn').className = h.on ? '' : 'pri';
   $('hookBtn').dataset.on = h.on ? '1' : '';
+  $('w2').classList.toggle('done', !!h.on);
 }
 $('hookBtn').onclick = async () => {
   try { await invoke('set_hooks', { on: !$('hookBtn').dataset.on }); } catch (e) { st('hookSt', t('Ошибка: {0}', e), 'bad'); return; }
@@ -201,6 +244,33 @@ $('updBtn').onclick = async () => {
 listen('update-available', e => { newVer = e.payload; st('updSt', t('Доступно обновление {0}', e.payload), 'ok'); $('updBtn').textContent = t('Обновить до {0}', e.payload); $('updBtn').className = 'pri'; });
 
 $('logBtn').onclick = () => invoke('open_log');
+
+/* вход в claude.ai */
+async function login() { try { await invoke('claude_login'); st('keyStatus', t('Войди в открывшемся окне — ключ сохранится сам')); } catch (e) { st('keyStatus', t('Ошибка: {0}', e), 'bad'); } }
+$('login').onclick = login;
+$('wLogin').onclick = login;
+listen('login-done', e => {
+  const u = e.payload;
+  u.ok ? st('keyStatus', t('✓ Работает: 5 ч — {0}%, неделя — {1}%', Math.round(u.pct), Math.round(u.week_pct)), 'ok')
+       : st('keyStatus', t('Ключ сохранён, но: {0}', t(u.error)), 'bad');
+  $('w1').classList.add('done'); $('login').textContent = t('Войти заново');
+});
+$('wHooks').onclick = async () => { try { await invoke('set_hooks', { on: true }); $('w2').classList.add('done'); hooks(); } catch {} };
+$('wTg').onclick = async () => { await tgDiag(); $('w3').classList.add('done'); document.getElementById('tgCard').scrollIntoView({ behavior: 'smooth' }); };
+$('wDone').onclick = () => { try { localStorage.setItem('ci-welcomed', '1'); } catch {} $('welcome').hidden = true; };
+
+/* Telegram: что работает, а что нет */
+async function tgDiag() {
+  let d; try { d = await invoke('tg_diag'); } catch { return; }
+  const line = (ok, good, bad) => `<div class="${ok ? 'ok' : 'bad'}">${ok ? '✓' : '✗'} ${ok ? good : bad}</div>`;
+  $('tgDiag').innerHTML =
+    line(d.access === 'allowed', t('Доступ к уведомлениям Windows разрешён'), t('Нет доступа к уведомлениям Windows — разреши в Параметрах')) +
+    line(d.running, t('Telegram Desktop запущен'), t('Telegram Desktop не запущен')) +
+    line(d.seen_toasts, t('Уведомления Telegram приходят в Windows'), t('Уведомлений Telegram в Windows пока не было — проверь настройки ниже')) +
+    (d.running ? `<div>${t('Непрочитанных по заголовку окна: {0}', d.title_count ?? 0)}</div>` : '');
+}
+$('tgCheck').onclick = tgDiag;
+$('tgOpenWin').onclick = () => invoke('open_win_settings', { page: 'notifications' });
 
 $('keySave').onclick = async () => {
   const k = $('key').value.trim();

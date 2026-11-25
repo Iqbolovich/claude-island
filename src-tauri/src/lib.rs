@@ -2,6 +2,8 @@
 pub mod log;
 mod hooks;
 #[cfg(windows)]
+mod guard;
+#[cfg(windows)]
 mod chatwatch;
 #[cfg(windows)]
 mod media;
@@ -16,6 +18,8 @@ mod usage;
 mod volume;
 
 use settings::Settings;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{channel, Sender};
@@ -218,13 +222,15 @@ fn get_settings(state: tauri::State<AppState>) -> Settings {
 
 #[tauri::command]
 fn save_settings(app: AppHandle, state: tauri::State<AppState>, s: Settings) -> Result<(), String> {
-    let old_hk = {
+    let (old_hk, old_auto) = {
         let mut cur = state.settings.lock().unwrap();
-        std::mem::replace(&mut *cur, s.clone()).hotkey
+        let old = std::mem::replace(&mut *cur, s.clone());
+        (old.hotkey, old.autostart)
     };
     let hk = if old_hk != s.hotkey { apply_hotkey(&app, &s.hotkey) } else { Ok(()) };
     let _ = settings::save(&state.config_dir, &s);
-    set_autostart(s.autostart);
+    // раньше вызывалось при каждом сохранении; теперь — только когда галочку переключили
+    if old_auto != s.autostart { set_autostart(s.autostart); }
     let _ = state.poke.lock().unwrap().send(());
     if let Some(win) = app.get_webview_window("main") {
         let sf = win.scale_factor().unwrap_or(1.0);
@@ -300,6 +306,48 @@ async fn set_session_key(app: AppHandle, key: String) -> Result<usage::Usage, St
         .unwrap_or_default())
 }
 
+/// Вход в claude.ai прямо из программы: открываем сайт в отдельном окне, человек входит
+/// как обычно, а мы раз в секунду смотрим, появилась ли cookie sessionKey. Нашли —
+/// сохраняем ключ (зашифрованным, как и раньше) и закрываем окно. Сайт в этом окне
+/// не имеет доступа к командам программы: в capabilities его нет.
+#[tauri::command]
+async fn claude_login(app: AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("login") {
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let url: tauri::Url = "https://claude.ai/login".parse().map_err(|e| format!("{e}"))?;
+    let win = WebviewWindowBuilder::new(&app, "login", WebviewUrl::External(url))
+        .title("Claude Island — вход в claude.ai")
+        .inner_size(480.0, 760.0)
+        .center()
+        .focused(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let _ = win.set_always_on_top(true);
+    let _ = win.set_always_on_top(false);
+    std::thread::spawn(move || {
+        let site: tauri::Url = "https://claude.ai".parse().unwrap();
+        // ждём до 15 минут, пока человек входит
+        for _ in 0..900 {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            let Some(w) = app.get_webview_window("login") else { return }; // окно закрыли
+            let Ok(cookies) = w.cookies_for_url(site.clone()) else { continue };
+            let Some(key) = cookies.iter().find(|c| c.name() == "sessionKey").map(|c| c.value().to_string()) else { continue };
+            if !key.starts_with("sk-ant-") { continue; }
+            let dir = app.state::<AppState>().config_dir.clone();
+            if let Err(e) = secret::save(&dir, &key) { ilog!("вход: не удалось сохранить ключ: {e}"); return; }
+            ilog!("вход в claude.ai: ключ получен");
+            let _ = app.state::<AppState>().poke.lock().unwrap().send(());
+            let u = usage::fetch(&key, &mut None);
+            let _ = app.emit("login-done", &u);
+            let _ = w.close();
+            return;
+        }
+    });
+    Ok(())
+}
+
 #[tauri::command]
 fn cursor_inside(win: WebviewWindow) -> bool {
     #[cfg(windows)]
@@ -328,13 +376,14 @@ fn set_autostart(on: bool) {
     unsafe {
         if on {
             let Ok(exe) = std::env::current_exe() else { return };
-            let v: Vec<u16> = format!("\"{}\"", exe.display()).encode_utf16().chain([0]).collect();
+            let v: Vec<u16> = format!("\"{}\" --autostart", exe.display()).encode_utf16().chain([0]).collect();
             let _ = RegSetKeyValueW(HKEY_CURRENT_USER, run, w!("ClaudeIsland"), REG_SZ.0,
                 Some(v.as_ptr() as _), (v.len() * 2) as u32);
         } else {
             let _ = RegDeleteKeyValueW(HKEY_CURRENT_USER, run, w!("ClaudeIsland"));
         }
     }
+    guard::set_logon_task(on);
 }
 
 #[cfg(not(windows))]
@@ -354,6 +403,25 @@ fn get_media_cover() -> serde_json::Value {
     { serde_json::to_value(media::current_cover()).unwrap_or_default() }
     #[cfg(not(windows))]
     serde_json::Value::Null
+}
+
+#[tauri::command]
+fn tg_diag() -> serde_json::Value {
+    #[cfg(windows)]
+    { serde_json::to_value(tg::diag()).unwrap_or_default() }
+    #[cfg(not(windows))]
+    serde_json::Value::Null
+}
+
+/// Открывает раздел Параметров Windows (только из белого списка).
+#[tauri::command]
+fn open_win_settings(page: String) {
+    let uri = match page.as_str() {
+        "notifications" => "ms-settings:notifications",
+        "privacy-notifications" => "ms-settings:privacy-notifications",
+        _ => return,
+    };
+    let _ = std::process::Command::new("explorer.exe").arg(uri).spawn();
 }
 
 #[tauri::command]
@@ -392,6 +460,13 @@ fn migrate_config(dir: &std::path::Path) {
 /// чтобы по очереди измерить, какая из них нагружает процессор.
 fn diag_off(name: &str) -> bool {
     std::env::var("CI_OFF").is_ok_and(|v| v.split(',').any(|x| x.trim() == name || x.trim() == "all"))
+}
+
+pub fn watch(pid: u32, restarts: u32) {
+    #[cfg(windows)]
+    guard::watch(pid, restarts);
+    #[cfg(not(windows))]
+    let _ = (pid, restarts);
 }
 
 pub fn hook(mode: &str) {
@@ -474,7 +549,9 @@ fn app_version() -> &'static str { env!("CARGO_PKG_VERSION") }
 pub fn run() {
     tauri::Builder::default()
         // второй запуск (ярлык + автозапуск) не плодит второй остров, а открывает настройки
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_settings(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !args.iter().any(|a| a == "--autostart") { show_settings(app); }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
@@ -490,8 +567,28 @@ pub fn run() {
             let config_dir = app.path().app_config_dir().unwrap_or_default();
             migrate_config(&config_dir);
             log::init(&config_dir);
+            #[cfg(windows)]
+            {
+                guard::mark_alive();
+                if !cfg!(debug_assertions) {
+                    let args: Vec<String> = std::env::args().collect();
+                    let n = args.iter().position(|a| a == "--restarts")
+                        .and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok()).unwrap_or(0);
+                    guard::spawn_watchdog(n);
+                }
+            }
             hooks::refresh();
             let s = settings::load(&config_dir);
+            // автозапуск включён — обновляем запись (путь, --autostart) и задачу планировщика:
+            // у старых установок её нет, а без неё остров стартует через минуту после входа
+            #[cfg(windows)]
+            if s.autostart && !cfg!(debug_assertions) {
+                let has_task = std::process::Command::new("schtasks")
+                    .args(["/query", "/tn", "Claude Island"])
+                    .creation_flags(0x0800_0000)
+                    .status().is_ok_and(|st| st.success());
+                if !has_task { set_autostart(true); }
+            }
             let (tx, rx) = channel();
             app.manage(AppState {
                 settings: Mutex::new(s.clone()),
@@ -565,6 +662,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             cursor_inside,
+            tg_diag,
+            open_win_settings,
+            claude_login,
             get_media_cover,
             check_update,
             install_update,
