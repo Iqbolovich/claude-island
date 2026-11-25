@@ -72,6 +72,8 @@ $latest = [ordered]@{
 Write-Host "Собрано: release\$name, release\$name.sig, release\latest.json (v$ver)"
 
 if ($Publish) {
+  & gh auth status --hostname github.com *> $null
+  if ($LASTEXITCODE -ne 0) { throw 'gh не вошёл в GitHub: выполни один раз gh auth login' }
   $files = @("release\$name", "release\$name.sig", "release\latest.json")
   $body = if ($Notes) { $Notes } else { "Claude Island $ver" }
   gh release create "v$ver" @files --repo $repoSlug --title "Claude Island $ver" --notes $body --target main --latest
