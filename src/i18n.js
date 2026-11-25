@@ -15,7 +15,7 @@
     'Ничего не играет': 'Nothing playing', 'Включи трек в любом плеере': 'Play a track in any player',
     'Telegram · {0} непрочит. · клик, чтобы прочитать': 'Telegram · {0} unread · click to mark read',
     'Нет доступа к уведомлениям — разреши в Параметрах Windows': 'No access to notifications — allow it in Windows Settings',
-    'Нет новых сообщений': 'No new messages', 'Непрочитанных: {0} — открой Telegram, чтобы прочитать': 'Unread: {0} — open Telegram to read', '{0} и ещё {1}': '{0} and {1} more',
+    'Нет новых сообщений': 'No new messages', 'Новых сообщений: {0} — открой Telegram, чтобы прочитать': 'New messages: {0} — open Telegram to read', 'Новых сообщений: {0}': 'New messages: {0}', '{0} и ещё {1}': '{0} and {1} more',
     'Claude ждёт разрешения': 'Claude needs permission', 'Claude закончил': 'Claude is done',
     'Скопировано': 'Copied', 'Батарея {0}% — подключи зарядку': 'Battery {0}% — plug in the charger',
     'Зарядка · {0}%': 'Charging · {0}%', 'От батареи · {0}%': 'On battery · {0}%',

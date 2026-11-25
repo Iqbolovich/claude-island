@@ -25,8 +25,9 @@ pub struct State {
     pub status: String,
     /// от старых к новым
     pub items: Vec<Msg>,
-    /// непрочитанные по заголовку окна Telegram («Telegram (5)») — запасной источник,
-    /// если уведомления Windows у человека не работают
+    /// новые сообщения по заголовку окна Telegram — запасной источник, если уведомления
+    /// Windows у человека не работают. Это прирост с момента «прочитано», а не всё число
+    /// в заголовке: там бывают сотни тысяч из каналов без звука.
     pub count: u32,
 }
 
@@ -42,8 +43,21 @@ pub struct Diag {
 }
 
 static SEEN_TG: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// клик «прочитано» — заново отсчитывать прирост от текущего числа в заголовке
+static RESET_BASE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Ищет окно Telegram Desktop и достаёт число из заголовка «Telegram (N)».
+/// Число в конце заголовка: «Telegram (5)», «Имя | Аккаунт (203335)» → 5 / 203335.
+fn trailing_count(title: &str) -> u32 {
+    let t = title.trim_end();
+    let Some(inner) = t.strip_suffix(')') else { return 0 };
+    let Some((_, num)) = inner.rsplit_once('(') else { return 0 };
+    let num = num.trim();
+    if num.is_empty() || !num.chars().all(|c| c.is_ascii_digit()) { return 0; }
+    num.parse().unwrap_or(0)
+}
+
+/// Ищет окна Telegram Desktop (по процессу Telegram.exe — у версии из Microsoft Store
+/// в заголовке имя аккаунта, а не «Telegram») и достаёт число непрочитанных из заголовка.
 /// None — Telegram не запущен; Some(0) — запущен, непрочитанных нет.
 pub fn title_unread() -> Option<u32> {
     use windows::Win32::Foundation::{BOOL, HWND, LPARAM, CloseHandle};
@@ -55,7 +69,6 @@ pub fn title_unread() -> Option<u32> {
         let n = GetWindowTextW(h, &mut buf);
         if n <= 0 { return true.into(); }
         let title = String::from_utf16_lossy(&buf[..n as usize]);
-        if !title.starts_with("Telegram") { return true.into(); }
         // окно должно принадлежать Telegram.exe, а не вкладке браузера «Telegram Web»
         let mut pid = 0u32;
         GetWindowThreadProcessId(h, Some(&mut pid));
@@ -67,7 +80,7 @@ pub fn title_unread() -> Option<u32> {
         if !ok || !String::from_utf16_lossy(&path[..len as usize]).to_lowercase().ends_with("telegram.exe") {
             return true.into();
         }
-        let count = title.rsplit_once('(').and_then(|(_, r)| r.trim_end_matches(')').trim().parse().ok()).unwrap_or(0);
+        let count = trailing_count(&title);
         *out = Some(out.unwrap_or(0).max(count));
         true.into()
     }
@@ -154,7 +167,8 @@ pub fn start(app: AppHandle) {
         let mut first = true;
         let mut last_err = String::new();
         let mut last_count = 0u32;
-        let mut first_count = true;
+        let mut base: Option<u32> = None;
+        let mut last_fallback: Option<std::time::Instant> = None;
         let mut tick = 0u32;
         loop {
             tick += 1;
@@ -162,7 +176,15 @@ pub fn start(app: AppHandle) {
             let on = app.state::<crate::AppState>().settings.lock().unwrap().show_telegram;
             let mut st = State { status: "off".into(), items: vec![], count: 0 };
             if on {
-                st.count = title_unread().unwrap_or(0);
+                if let Some(raw) = title_unread() {
+                    // отсчёт от числа при запуске / после «прочитано»; прочитал в Telegram — число
+                    // в заголовке упало, опускаем и точку отсчёта
+                    if RESET_BASE.swap(false, std::sync::atomic::Ordering::Relaxed) { base = Some(raw); }
+                    let b = base.map_or(raw, |b| b.min(raw));
+                    base = Some(b);
+                    // уведомления Windows работают — тексты берём оттуда, счётчик заголовка не нужен
+                    if !SEEN_TG.load(std::sync::atomic::Ordering::Relaxed) { st.count = raw - b; }
+                }
             }
             if on && access == Access::Allowed {
                 st.status = "ok".into();
@@ -193,12 +215,13 @@ pub fn start(app: AppHandle) {
             }
             // уведомления Windows не пришли, а счётчик в заголовке Telegram вырос —
             // показываем хотя бы «новое сообщение» (у части людей тосты Telegram не работают)
-            if on && !first_count && st.count > last_count && !toast_now
-                && !SEEN_TG.load(std::sync::atomic::Ordering::Relaxed) {
-                let _ = app.emit("tg-notification", Msg { from: "Telegram".into(), text: format!("Непрочитанных: {}", st.count) });
+            // (не чаще раза в минуту — иначе активные чаты засыплют остров)
+            if on && st.count > last_count && !toast_now
+                && last_fallback.map_or(true, |t| t.elapsed() >= Duration::from_secs(60)) {
+                let _ = app.emit("tg-notification", Msg { from: "Telegram".into(), text: format!("Новых сообщений: {}", st.count) });
+                last_fallback = Some(std::time::Instant::now());
             }
             last_count = st.count;
-            first_count = false;
             if st != last || tick % 4 == 0 {
                 let _ = app.emit("tg-state", &st);
                 last = st;
@@ -210,6 +233,7 @@ pub fn start(app: AppHandle) {
 
 /// Клик по плитке: убираем уведомления Telegram из центра уведомлений.
 pub fn clear() {
+    RESET_BASE.store(true, std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(|| {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);

@@ -199,7 +199,7 @@ function render() {
   $('tgCount').textContent = n ? t('Telegram · {0} непрочит. · клик, чтобы прочитать', n) : 'Telegram';
   $('msgs').innerHTML = items
     ? S.unread.slice(-3).reverse().map(x => `<div><b>${esc(x.from)}:</b> ${esc(x.text)}</div>`).join('')
-    : n ? `<div>${t('Непрочитанных: {0} — открой Telegram, чтобы прочитать', n)}</div>`
+    : n ? `<div>${t('Новых сообщений: {0} — открой Telegram, чтобы прочитать', n)}</div>`
     : `<div>${S.tg === 'denied' ? t('Нет доступа к уведомлениям — разреши в Параметрах Windows') : t('Нет новых сообщений')}</div>`;
 
   fit();
