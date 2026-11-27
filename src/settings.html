@@ -5,141 +5,287 @@
 <title>Claude Island — настройки</title>
 <script src="i18n.js"></script>
 <style>
-:root{--bg:#1c1c1c;--card:#262626;--edge:#333;--fg:#f0f0f0;--mute:#8e8e8e;--acc:#d97757;--ok:#34c759;--bad:#ff453a;
+:root{--bg:#191919;--side:#141414;--card:#232323;--card2:#2b2b2b;--edge:#323232;--fg:#f0f0f0;--mute:#9a9a9a;--acc:#d97757;--ok:#34c759;--warn:#ffcc00;--bad:#ff453a;
   --font:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 var(--font);padding:18px 20px 70px;user-select:none}
-h1{font-size:17px;margin:0 0 14px;display:flex;align-items:center;gap:9px}
-h1 i{width:18px;height:18px;border-radius:5px;background:var(--acc);display:inline-block}
-h1 small{margin-left:auto;font-size:11px;color:var(--mute);font-weight:400}
-h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:18px 0 7px;font-weight:600}
-.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:4px 14px}
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--edge)}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 var(--font);user-select:none;display:flex;overflow:hidden}
+
+/* ---------- меню слева ---------- */
+nav{width:200px;flex:none;background:var(--side);border-right:1px solid var(--edge);padding:16px 10px;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;padding:2px 10px 16px}
+.brand i{width:20px;height:20px;border-radius:6px;background:var(--acc);display:block;flex:none}
+.brand small{display:block;font-size:11px;font-weight:400;color:var(--mute)}
+nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--fg);text-decoration:none;cursor:pointer;position:relative}
+nav a:hover{background:rgba(255,255,255,.05)}
+nav a.on{background:rgba(255,255,255,.09)}
+nav a.on::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--acc)}
+nav a .ic{width:20px;text-align:center;font-size:14px;opacity:.9}
+nav a .st-dot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:transparent}
+nav a .st-dot.ok{background:var(--ok)}nav a .st-dot.bad{background:var(--warn)}
+nav .spacer{flex:1}
+#saved{font-size:12px;color:var(--ok);padding:6px 10px;opacity:0;transition:opacity .3s}
+
+/* ---------- страницы ---------- */
+main{flex:1;overflow-y:auto;padding:22px 26px 30px}
+.page{display:none;animation:in .25s ease}
+.page.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(4px)}}
+h1{font-size:20px;margin:0 0 4px;font-weight:600}
+.lead{color:var(--mute);margin:0 0 18px}
+h2{font-size:12px;color:var(--mute);margin:20px 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:2px 16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--edge);min-height:48px}
 .row:first-child{border-top:0}
-.row label{flex:1}
-.hint{color:var(--mute);font-size:12px;padding:0 0 10px}
+.row label,.row .lbl{flex:1;cursor:default}
+.row .sub{display:block;color:var(--mute);font-size:12px;margin-top:1px}
+.hint{color:var(--mute);font-size:12px;padding:0 0 12px}
 input,select,button{font:inherit;color:var(--fg)}
-input[type=password],input[type=text],select,input[type=number]{background:#1a1a1a;border:1px solid var(--edge);border-radius:8px;padding:6px 9px;outline:0}
+input[type=password],input[type=text],select,input[type=number]{background:#171717;border:1px solid var(--edge);border-radius:8px;padding:6px 10px;outline:0}
 input:focus,select:focus{border-color:var(--acc)}
-input[type=number]{width:72px;text-align:right}
-.key{display:flex;gap:6px;padding:10px 0}
-.key input{flex:1;min-width:0}
-button{background:#333;border:1px solid #3d3d3d;border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap}
-button:hover{background:#3b3b3b}
+input[type=number]{width:76px;text-align:right}
+button{background:var(--card2);border:1px solid #3a3a3a;border-radius:8px;padding:6px 14px;cursor:pointer;white-space:nowrap}
+button:hover{background:#353535}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 button.pri:hover{filter:brightness(1.08)}
+input[type=range]{width:180px;accent-color:var(--acc)}
 .st{font-size:12px;color:var(--mute)}
 .st.ok{color:var(--ok)}.st.bad{color:var(--bad)}
-#keyStatus{padding:0 0 10px}
-.welcome{border-color:var(--acc)}
-.welcome h3{margin:10px 0 4px;font-size:15px}
-.step{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--edge)}
+details{color:var(--mute);font-size:12px;padding:0 0 12px}
+details summary{cursor:pointer}
+details ol{margin:6px 0 6px;padding-left:18px}
+.key{display:flex;gap:6px;padding:0 0 10px}
+.key input{flex:1;min-width:0}
+#keyStatus{padding:0 0 12px}
+
+/* переключатель вместо галочки */
+input[type=checkbox]{appearance:none;width:38px;height:22px;border-radius:11px;background:#3a3a3a;position:relative;cursor:pointer;flex:none;transition:background .2s;margin:0}
+input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s cubic-bezier(.3,1.4,.6,1)}
+input[type=checkbox]:checked{background:var(--acc)}
+input[type=checkbox]:checked::after{transform:translateX(16px)}
+
+/* ---------- обзор ---------- */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--card);border:1px solid var(--edge);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .2s,background .2s}
+.tile:hover{border-color:#4a4a4a;background:#262626}
+.tile .t{display:flex;align-items:center;gap:8px;font-weight:600}
+.tile .t .ic{font-size:15px}
+.tile .v{margin-top:6px;font-size:12px;color:var(--mute);min-height:18px}
+.tile .v.ok{color:var(--ok)}.tile .v.bad{color:var(--warn)}
+.welcome{border-color:rgba(217,119,87,.6);background:linear-gradient(180deg,rgba(217,119,87,.10),transparent 70%),var(--card);margin-bottom:14px;padding:4px 16px 8px}
+.welcome h3{margin:12px 0 2px;font-size:15px}
+.step{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--edge)}
 .step:first-of-type{border-top:0}
-.step .n{width:22px;height:22px;border-radius:50%;background:#333;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
-.step.done .n{background:var(--ok);color:#000}
+.step .n{width:24px;height:24px;border-radius:50%;background:#383838;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.step.done .n{background:var(--ok);color:#000;font-size:0}
+.step.done .n::after{content:"✓";font-size:13px}
 .step label{flex:1}
+
+/* ---------- оформление ---------- */
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 0}
+.themes button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px 10px;border-radius:12px;background:#1d1d1d;border:1.5px solid var(--edge);font-size:12px}
+.themes button:hover{background:#262626}
+.themes button.on{border-color:var(--acc);background:rgba(217,119,87,.08)}
+.themes i{display:block;width:84px;height:22px;border-radius:11px;border:1px solid}
+/* схема экрана: где стоит остров */
+.screen{width:200px;height:118px;border-radius:8px;border:2px solid #444;background:linear-gradient(135deg,#2c4a6b,#5a3a34);position:relative;flex:none}
+.screen::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:rgba(0,0,0,.45)}
+.screen button{position:absolute;width:44px;height:10px;padding:0;border-radius:5px;background:rgba(255,255,255,.22);border:0}
+.screen button:hover{background:rgba(255,255,255,.5)}
+.screen button.on{background:#fff;box-shadow:0 0 8px rgba(255,255,255,.6)}
+.screen [data-v^=t]{top:8px}.screen [data-v^=b]{bottom:18px}
+.screen [data-v$=l]{left:10px}.screen [data-v$=r]{right:10px}.screen [data-v$=c]{left:50%;translate:-50% 0}
+.posrow{display:flex;gap:18px;align-items:center;padding:14px 0}
+
+/* ---------- telegram ---------- */
 .diag div{padding:3px 0}
-.diag .ok{color:var(--ok)}.diag .bad{color:var(--bad)}
-input[type=range]{width:150px;accent-color:var(--acc)}
-input[type=checkbox]{width:18px;height:18px;accent-color:var(--acc)}
-details{color:var(--mute);font-size:12px;padding:0 0 10px}
-details ol{margin:6px 0 0;padding-left:18px}
+.diag .ok{color:var(--ok)}.diag .bad{color:var(--warn)}
 #hotkey{width:150px;text-align:center;cursor:pointer;caret-color:transparent}
 #hotkey.rec{border-color:var(--acc);color:var(--acc)}
-.pair{display:flex;align-items:center;gap:8px}
-footer{position:fixed;left:0;right:0;bottom:0;padding:12px 20px;background:var(--bg);border-top:1px solid var(--edge);display:flex;justify-content:space-between;align-items:center}
-#saved{color:var(--ok);font-size:12px;opacity:0;transition:opacity .3s}
+.pair{display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
-<h1><i></i>Claude Island <small id="ver"></small></h1>
 
-<div class="card welcome" id="welcome" hidden>
-  <h3 data-t>Добро пожаловать!</h3>
-  <div class="hint" data-t>Три шага — и остров готов.</div>
-  <div class="step" id="w1"><span class="n">1</span><label data-t>Войти в claude.ai — остров покажет лимиты</label><button class="pri" id="wLogin" data-t>Войти</button></div>
-  <div class="step" id="w2"><span class="n">2</span><label data-t>Подключить Claude Code (если пользуешься)</label><button id="wHooks" data-t>Подключить</button></div>
-  <div class="step" id="w3"><span class="n">3</span><label data-t>Telegram: проверить уведомления</label><button id="wTg" data-t>Проверить</button></div>
-  <div class="row"><span></span><button id="wDone" data-t>Готово</button></div>
-</div>
+<nav id="nav">
+  <div class="brand"><i></i><div>Claude Island<small id="ver"></small></div></div>
+  <a data-p="home" class="on"><span class="ic">◉</span><span data-t>Обзор</span></a>
+  <a data-p="look"><span class="ic">🎨</span><span data-t>Оформление</span></a>
+  <a data-p="claude"><span class="ic">✳</span><span data-t>Лимиты Claude</span><span class="st-dot" id="dClaude"></span></a>
+  <a data-p="code"><span class="ic">⌨</span><span>Claude Code</span><span class="st-dot" id="dCode"></span></a>
+  <a data-p="tg"><span class="ic">✈</span><span>Telegram</span><span class="st-dot" id="dTg"></span></a>
+  <a data-p="show"><span class="ic">✦</span><span data-t>Что показывать</span></a>
+  <a data-p="sys"><span class="ic">⚙</span><span data-t>Система</span></a>
+  <div class="spacer"></div>
+  <div id="saved" data-t>✓ Сохранено</div>
+</nav>
 
-<h2 data-t>Лимиты Claude</h2>
-<div class="card">
-  <div class="row"><label data-t>Вход в claude.ai</label><button class="pri" id="login" data-t>Войти</button></div>
-  <div class="hint" data-t>Откроется окно claude.ai — войди как обычно, ключ сохранится сам. Или вставь его вручную:</div>
-  <div class="key"><input id="key" type="password" placeholder="sk-ant-sid01-…" autocomplete="off" spellcheck="false"><button class="pri" id="keySave" data-t>Сохранить</button></div>
-  <div id="keyStatus" class="st"></div>
-  <details><summary data-t>Где взять ключ сессии</summary>
-    <ol><li data-t>Открой claude.ai в браузере и войди.</li><li data-t>F12 → Application → Cookies → https://claude.ai.</li><li data-t>Скопируй значение sessionKey и вставь сюда.</li></ol>
-    <span data-t>Ключ хранится только на этом компьютере, зашифрованным средствами Windows.</span>
-  </details>
-  <div class="row"><label for="poll" data-t>Обновлять каждые, сек</label><input id="poll" type="number" min="10" max="900" step="5"></div>
-  <div class="row"><label for="warn" data-t>Жёлтый порог, %</label><input id="warn" type="number" min="10" max="99"></div>
-  <div class="row"><label for="alarm" data-t>Красный порог, %</label><input id="alarm" type="number" min="10" max="100"></div>
-</div>
+<main>
 
-<h2>Telegram</h2>
-<div class="card" id="tgCard">
-  <div class="diag" id="tgDiag"></div>
-  <div class="row"><button id="tgCheck" data-t>Проверить</button><button id="tgOpenWin" data-t>Уведомления Windows</button></div>
-  <details><summary data-t>Если сообщения Telegram не появляются</summary>
-    <ol>
-      <li data-t>Telegram Desktop → Настройки → Уведомления и звуки: включи «Уведомления на рабочем столе» и «Использовать уведомления Windows».</li>
-      <li data-t>Там же включи «Показывать текст сообщения», иначе в уведомлении будет только «Новое сообщение».</li>
-      <li data-t>Параметры Windows → Система → Уведомления: уведомления включены, Telegram в списке разрешён, режим «Не беспокоить» выключен.</li>
-      <li data-t>Параметры Windows → Конфиденциальность → Уведомления: доступ приложений к уведомлениям разрешён.</li>
-    </ol>
-    <span data-t>Даже без уведомлений остров покажет число непрочитанных — его видно в заголовке окна Telegram.</span>
-  </details>
-</div>
+<!-- ============ Обзор ============ -->
+<section class="page on" id="p-home">
+  <h1 data-t>Обзор</h1>
+  <p class="lead" data-t>Что сейчас работает. Нажми на плитку, чтобы настроить.</p>
 
-<h2>Claude Code</h2>
-<div class="card">
-  <div class="row"><span id="hookSt" class="st"></span><button id="hookBtn"></button></div>
-  <div class="hint" data-t>Остров покажет, когда Claude Code думает, закончил или ждёт разрешения. Работает в новых сессиях.</div>
-</div>
+  <div class="card welcome" id="welcome" hidden>
+    <h3 data-t>Добро пожаловать!</h3>
+    <div class="hint" data-t>Три шага — и остров готов.</div>
+    <div class="step" id="w1"><span class="n">1</span><label data-t>Войти в claude.ai — остров покажет лимиты</label><button class="pri" id="wLogin" data-t>Войти</button></div>
+    <div class="step" id="w2"><span class="n">2</span><label data-t>Подключить Claude Code (если пользуешься)</label><button id="wHooks" data-t>Подключить</button></div>
+    <div class="step" id="w3"><span class="n">3</span><label data-t>Telegram: проверить уведомления</label><button id="wTg" data-t>Проверить</button></div>
+    <div class="row"><span></span><button id="wDone" data-t>Готово</button></div>
+  </div>
 
-<h2 data-t>Остров</h2>
-<div class="card">
-  <div class="row"><label for="lang" data-t>Язык</label>
-    <select id="lang"><option value="auto" data-t>Как в Windows</option><option value="ru">Русский</option><option value="en">English</option></select></div>
-  <div class="row"><label for="pos" data-t>Положение</label>
-    <select id="pos"><option value="tl" data-t>Сверху слева</option><option value="tc" data-t>Сверху по центру</option><option value="tr" data-t>Сверху справа</option><option value="bl" data-t>Снизу слева</option><option value="bc" data-t>Снизу по центру</option><option value="br" data-t>Снизу справа</option></select></div>
-  <div class="row"><label for="theme" data-t>Тема</label>
-    <select id="theme"><option value="black" data-t>Чёрная</option><option value="glass" data-t>Стекло</option></select></div>
-  <div class="row" id="opRow"><label for="opacity" data-t>Прозрачность стекла</label><input id="opacity" type="range" min=".25" max=".9" step=".05"></div>
-  <div class="row"><label for="swap" data-t>Таймер ↔ часы, сек</label><input id="swap" type="number" min="2" max="30"></div>
-  <div class="row"><label for="pomo" data-t>Помодоро, мин</label><input id="pomo" type="number" min="1" max="180"></div>
-  <div class="row"><label for="fullscreen" data-t>Прятать в полноэкранных приложениях</label><input id="fullscreen" type="checkbox"></div>
-</div>
+  <div class="tiles">
+    <div class="tile" data-go="claude"><div class="t"><span class="ic">✳</span><span data-t>Лимиты Claude</span></div><div class="v" id="oClaude">…</div></div>
+    <div class="tile" data-go="code"><div class="t"><span class="ic">⌨</span><span>Claude Code</span></div><div class="v" id="oCode">…</div></div>
+    <div class="tile" data-go="tg"><div class="t"><span class="ic">✈</span><span>Telegram</span></div><div class="v" id="oTg">…</div></div>
+    <div class="tile" data-go="sys"><div class="t"><span class="ic">↑</span><span data-t>Обновления</span></div><div class="v" id="oUpd">…</div></div>
+  </div>
+</section>
 
-<h2 data-t>Показывать на острове</h2>
-<div class="card">
-  <div class="row"><label for="music" data-t>Музыка</label><input id="music" type="checkbox"></div>
-  <div class="row"><label for="fx_media" data-t>Свечение при play/pause</label><input id="fx_media" type="checkbox"></div>
-  <div class="row"><label for="tg">Telegram</label><input id="tg" type="checkbox"></div>
-  <div class="row"><label for="fx_done" data-t>Claude закончил ответ</label><input id="fx_done" type="checkbox"></div>
-  <div class="row"><label for="fx_wait" data-t>Claude ждёт разрешения (Code)</label><input id="fx_wait" type="checkbox"></div>
-  <div class="row"><label for="fx_volume" data-t>Громкость</label><input id="fx_volume" type="checkbox"></div>
-  <div class="row"><label for="fx_layout" data-t>Раскладка RU/EN</label><input id="fx_layout" type="checkbox"></div>
-  <div class="row"><label for="fx_privacy" data-t>Камера и микрофон</label><input id="fx_privacy" type="checkbox"></div>
-  <div class="row"><label for="fx_copy" data-t>Скопировано в буфер</label><input id="fx_copy" type="checkbox"></div>
-  <div class="row"><label for="fx_power" data-t>Зарядка и батарея</label><input id="fx_power" type="checkbox"></div>
-  <div class="row"><label for="fx_audio" data-t>Смена наушников и колонок</label><input id="fx_audio" type="checkbox"></div>
-</div>
+<!-- ============ Оформление ============ -->
+<section class="page" id="p-look">
+  <h1 data-t>Оформление</h1>
+  <p class="lead" data-t>Меняется сразу, остров перекрасится на глазах.</p>
+  <h2 data-t>Тема</h2>
+  <div class="card">
+    <div class="themes" id="themes">
+      <button data-v="black"><i style="background:#000;border-color:#333"></i><span data-t>Чёрная</span></button>
+      <button data-v="glass"><i style="background:linear-gradient(180deg,#5a5d63,#2c2e33);border-color:#777"></i><span data-t>Стекло</span></button>
+      <button data-v="light"><i style="background:linear-gradient(180deg,#fff,#e9ebef);border-color:#fff"></i><span data-t>Светлое стекло</span></button>
+      <button data-v="paper"><i style="background:#f4efe6;border-color:#d97757"></i><span data-t>Тёплая бумага</span></button>
+      <button data-v="term"><i style="background:#06120b;border-color:#39ff8c"></i><span data-t>Терминал</span></button>
+      <button data-v="sunset"><i style="background:linear-gradient(120deg,#5b3df5,#c2417a 55%,#f08a4b);border-color:transparent"></i><span data-t>Закат</span></button>
+    </div>
+    <select id="theme" hidden><option value="black"></option><option value="glass"></option><option value="light"></option><option value="paper"></option><option value="term"></option><option value="sunset"></option></select>
+    <div class="row" id="opRow"><label for="opacity" data-t>Прозрачность</label><input id="opacity" type="range" min=".25" max=".9" step=".05"></div>
+  </div>
+  <h2 data-t>Где стоит остров</h2>
+  <div class="card">
+    <div class="posrow">
+      <div class="screen" id="posPick">
+        <button data-v="tl"></button><button data-v="tc"></button><button data-v="tr"></button>
+        <button data-v="bl"></button><button data-v="bc"></button><button data-v="br"></button>
+      </div>
+      <div class="st" data-t>Нажми на место на схеме экрана.</div>
+    </div>
+    <select id="pos" hidden><option value="tl"></option><option value="tc"></option><option value="tr"></option><option value="bl"></option><option value="bc"></option><option value="br"></option></select>
+  </div>
+  <h2 data-t>Язык</h2>
+  <div class="card">
+    <div class="row"><label for="lang" data-t>Язык</label>
+      <select id="lang"><option value="auto" data-t>Как в Windows</option><option value="ru">Русский</option><option value="en">English</option></select></div>
+  </div>
+</section>
 
-<h2 data-t>Система</h2>
-<div class="card">
-  <div class="row"><label for="auto" data-t>Запускать вместе с Windows</label><input id="auto" type="checkbox"></div>
-  <div class="row"><label for="hotkey" data-t>Показать/спрятать остров</label>
-    <div class="pair"><input id="hotkey" type="text" readonly><button id="hkClear">✕</button></div></div>
-  <div class="hint st bad" id="hkErr" hidden data-t>Сочетание занято другой программой</div>
-  <div class="row"><label for="upd" data-t>Проверять обновления</label><input id="upd" type="checkbox"></div>
-  <div class="row"><span id="updSt" class="st"></span><button id="updBtn">Проверить</button></div>
-  <div class="row"><label data-t>Журнал ошибок</label><button id="logBtn" data-t>Открыть</button></div>
-</div>
+<!-- ============ Лимиты Claude ============ -->
+<section class="page" id="p-claude">
+  <h1 data-t>Лимиты Claude</h1>
+  <p class="lead" data-t>Остров показывает, сколько осталось до лимита и когда сброс.</p>
+  <h2 data-t>Вход</h2>
+  <div class="card">
+    <div class="row"><span class="lbl"><span data-t>Вход в claude.ai</span><span class="sub" data-t>Откроется окно claude.ai — войди как обычно, ключ сохранится сам.</span></span><button class="pri" id="login" data-t>Войти</button></div>
+    <div id="keyStatus" class="st"></div>
+    <details><summary data-t>Вставить ключ вручную</summary>
+      <div class="key" style="margin-top:8px"><input id="key" type="password" placeholder="sk-ant-sid01-…" autocomplete="off" spellcheck="false"><button class="pri" id="keySave" data-t>Сохранить</button></div>
+      <ol><li data-t>Открой claude.ai в браузере и войди.</li><li data-t>F12 → Application → Cookies → https://claude.ai.</li><li data-t>Скопируй значение sessionKey и вставь сюда.</li></ol>
+      <span data-t>Ключ хранится только на этом компьютере, зашифрованным средствами Windows.</span>
+    </details>
+  </div>
+  <h2 data-t>Предупреждения</h2>
+  <div class="card">
+    <div class="row"><label for="warn"><span data-t>Жёлтый порог, %</span><span class="sub" data-t>Остров подсветится жёлтым</span></label><input id="warn" type="number" min="10" max="99"></div>
+    <div class="row"><label for="alarm"><span data-t>Красный порог, %</span><span class="sub" data-t>Остров мигнёт красным</span></label><input id="alarm" type="number" min="10" max="100"></div>
+    <div class="row"><label for="poll" data-t>Обновлять каждые, сек</label><input id="poll" type="number" min="10" max="900" step="5"></div>
+  </div>
+</section>
 
-<footer><span id="saved" data-t>✓ Сохранено</span><button class="pri" id="save" data-t>Применить</button></footer>
+<!-- ============ Claude Code ============ -->
+<section class="page" id="p-code">
+  <h1>Claude Code</h1>
+  <p class="lead" data-t>Остров покажет, когда Claude Code думает, закончил или ждёт разрешения. Работает в новых сессиях.</p>
+  <div class="card">
+    <div class="row"><span id="hookSt" class="st"></span><button id="hookBtn"></button></div>
+  </div>
+</section>
+
+<!-- ============ Telegram ============ -->
+<section class="page" id="p-tg">
+  <h1>Telegram</h1>
+  <p class="lead" data-t>Новые сообщения из Telegram Desktop — прямо на острове.</p>
+  <div class="card">
+    <div class="row"><label for="tg" data-t>Показывать сообщения Telegram</label><input id="tg" type="checkbox"></div>
+  </div>
+  <h2 data-t>Проверка</h2>
+  <div class="card" id="tgCard">
+    <div class="diag" id="tgDiag" style="padding-top:10px"></div>
+    <div class="row"><button id="tgCheck" data-t>Проверить</button><button id="tgOpenWin" data-t>Уведомления Windows</button></div>
+    <details><summary data-t>Если сообщения Telegram не появляются</summary>
+      <ol>
+        <li data-t>Telegram Desktop → Настройки → Уведомления и звуки: включи «Уведомления на рабочем столе» и «Использовать уведомления Windows».</li>
+        <li data-t>Там же включи «Показывать текст сообщения», иначе в уведомлении будет только «Новое сообщение».</li>
+        <li data-t>Параметры Windows → Система → Уведомления: уведомления включены, Telegram в списке разрешён, режим «Не беспокоить» выключен.</li>
+        <li data-t>Параметры Windows → Конфиденциальность → Уведомления: доступ приложений к уведомлениям разрешён.</li>
+      </ol>
+      <span data-t>Даже без уведомлений остров покажет число непрочитанных — его видно в заголовке окна Telegram.</span>
+    </details>
+  </div>
+</section>
+
+<!-- ============ Что показывать ============ -->
+<section class="page" id="p-show">
+  <h1 data-t>Что показывать</h1>
+  <p class="lead" data-t>Выключи то, что отвлекает.</p>
+  <h2 data-t>Музыка</h2>
+  <div class="card">
+    <div class="row"><label for="music" data-t>Музыка</label><input id="music" type="checkbox"></div>
+    <div class="row"><label for="fx_media" data-t>Свечение при play/pause</label><input id="fx_media" type="checkbox"></div>
+  </div>
+  <h2>Claude</h2>
+  <div class="card">
+    <div class="row"><label for="fx_done" data-t>Claude закончил ответ</label><input id="fx_done" type="checkbox"></div>
+    <div class="row"><label for="fx_wait" data-t>Claude ждёт разрешения (Code)</label><input id="fx_wait" type="checkbox"></div>
+  </div>
+  <h2 data-t>Система</h2>
+  <div class="card">
+    <div class="row"><label for="fx_volume" data-t>Громкость</label><input id="fx_volume" type="checkbox"></div>
+    <div class="row"><label for="fx_layout" data-t>Раскладка RU/EN</label><input id="fx_layout" type="checkbox"></div>
+    <div class="row"><label for="fx_privacy" data-t>Камера и микрофон</label><input id="fx_privacy" type="checkbox"></div>
+    <div class="row"><label for="fx_copy" data-t>Скопировано в буфер</label><input id="fx_copy" type="checkbox"></div>
+    <div class="row"><label for="fx_power" data-t>Зарядка и батарея</label><input id="fx_power" type="checkbox"></div>
+    <div class="row"><label for="fx_audio" data-t>Смена наушников и колонок</label><input id="fx_audio" type="checkbox"></div>
+  </div>
+  <h2 data-t>Поведение</h2>
+  <div class="card">
+    <div class="row"><label for="swap" data-t>Таймер ↔ часы, сек</label><input id="swap" type="number" min="2" max="30"></div>
+    <div class="row"><label for="pomo" data-t>Помодоро, мин</label><input id="pomo" type="number" min="1" max="180"></div>
+    <div class="row"><label for="fullscreen" data-t>Прятать в полноэкранных приложениях</label><input id="fullscreen" type="checkbox"></div>
+  </div>
+</section>
+
+<!-- ============ Система ============ -->
+<section class="page" id="p-sys">
+  <h1 data-t>Система</h1>
+  <p class="lead" data-t>Запуск, горячая клавиша и обновления.</p>
+  <div class="card">
+    <div class="row"><label for="auto" data-t>Запускать вместе с Windows</label><input id="auto" type="checkbox"></div>
+    <div class="row"><label for="hotkey" data-t>Показать/спрятать остров</label>
+      <div class="pair"><input id="hotkey" type="text" readonly><button id="hkClear">✕</button></div></div>
+    <div class="hint st bad" id="hkErr" hidden data-t>Сочетание занято другой программой</div>
+  </div>
+  <h2 data-t>Обновления</h2>
+  <div class="card">
+    <div class="row"><label for="upd" data-t>Проверять обновления</label><input id="upd" type="checkbox"></div>
+    <div class="row"><span id="updSt" class="st"></span><button id="updBtn">Проверить</button></div>
+  </div>
+  <h2 data-t>Если что-то не так</h2>
+  <div class="card">
+    <div class="row"><label data-t>Журнал ошибок</label><button id="logBtn" data-t>Открыть</button></div>
+  </div>
+</section>
+
+</main>
 
 <script>
 const { invoke } = window.__TAURI__.core;
@@ -149,6 +295,17 @@ const FX = ['fx_media', 'fx_done', 'fx_wait', 'fx_volume', 'fx_layout', 'fx_priv
 let cur = {}, hk = '', newVer = '';
 
 function st(id, text, cls) { const s = $(id); s.textContent = text; s.className = 'st ' + (cls || ''); }
+// плитка обзора и точка в меню
+function ov(id, dot, text, cls) { const v = $(id); v.textContent = text; v.className = 'v ' + (cls || ''); if (dot) $(dot).className = 'st-dot ' + (cls || ''); }
+
+/* разделы */
+function go(p) {
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.p === p));
+  document.querySelectorAll('.page').forEach(s => s.classList.toggle('on', s.id === 'p-' + p));
+  document.querySelector('main').scrollTop = 0;
+}
+document.querySelectorAll('nav a').forEach(a => a.onclick = () => go(a.dataset.p));
+document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => go(el.dataset.go));
 
 // «super+alt+KeyC» ⇄ «Win+Alt+C»
 const pretty = h => !h ? t('нет') : h.split('+').map(p => ({ super: 'Win', control: 'Ctrl', alt: 'Alt', shift: 'Shift' }[p] || p.replace(/^Key|^Digit/, ''))).join('+');
@@ -156,7 +313,8 @@ const pretty = h => !h ? t('нет') : h.split('+').map(p => ({ super: 'Win', co
 async function load() {
   cur = await invoke('get_settings');
   setLang(cur.lang);
-  $('ver').textContent = t('Версия {0}', await invoke('app_version'));
+  const ver = await invoke('app_version');
+  $('ver').textContent = t('Версия {0}', ver);
   $('poll').value = cur.poll_secs; $('warn').value = cur.warn_at; $('alarm').value = cur.alarm_at;
   $('pos').value = cur.pos === 'free' ? 'tc' : cur.pos; $('opacity').value = cur.opacity; $('swap').value = cur.swap_secs;
   $('music').checked = cur.show_music; $('tg').checked = cur.show_telegram; $('auto').checked = cur.autostart;
@@ -164,10 +322,11 @@ async function load() {
   $('fullscreen').checked = cur.hide_fullscreen; $('upd').checked = cur.auto_update;
   FX.forEach(k => $(k).checked = cur[k] !== false);
   hk = cur.hotkey || ''; $('hotkey').value = pretty(hk);
-  syncTheme(); hooks();
-  if (!newVer) $('updBtn').textContent = t('Проверить');
+  syncTheme(); syncPos(); hooks();
+  if (!newVer) { $('updBtn').textContent = t('Проверить'); ov('oUpd', null, cur.auto_update ? t('Версия {0} · проверяются сами', ver) : t('Версия {0} · автопроверка выключена', ver)); }
   const hasKey = await invoke('has_session_key');
   hasKey ? st('keyStatus', t('Ключ сохранён и зашифрован'), 'ok') : st('keyStatus', t('Ключ не задан'));
+  hasKey ? ov('oClaude', 'dClaude', t('Вход выполнен'), 'ok') : ov('oClaude', 'dClaude', t('Нужно войти в claude.ai'), 'bad');
   $('login').textContent = hasKey ? t('Войти заново') : t('Войти');
   // приветствие — пока не нажали «Готово» (и пока нет ключа)
   let welcomed = false; try { welcomed = localStorage.getItem('ci-welcomed') === '1'; } catch {}
@@ -187,20 +346,27 @@ function collect() {
   return o;
 }
 
+let savedT;
 async function save() {
   cur = collect();
   try { await invoke('save_settings', { s: cur }); $('hkErr').hidden = true; }
   catch (e) { $('hkErr').hidden = false; }
   setLang(cur.lang); $('hotkey').value = pretty(hk);
-  $('saved').style.opacity = 1; setTimeout(() => $('saved').style.opacity = 0, 1500);
+  $('saved').style.opacity = 1; clearTimeout(savedT); savedT = setTimeout(() => $('saved').style.opacity = 0, 1500);
 }
 
-$('save').onclick = save;
-// прозрачность имеет смысл только у стекла
-function syncTheme() { $('opRow').style.display = $('theme').value === 'glass' ? '' : 'none'; }
-$('theme').addEventListener('input', syncTheme);
-// то, что видно сразу, применяем без кнопки
-['pos', 'theme', 'opacity', 'music', 'tg', 'lang', 'fullscreen', 'upd', ...FX].forEach(id => $(id).addEventListener('input', save));
+// прозрачность есть только у полупрозрачных тем
+function syncTheme() {
+  $('opRow').style.display = ['glass', 'light', 'term'].includes($('theme').value) ? '' : 'none';
+  document.querySelectorAll('#themes button').forEach(b => b.classList.toggle('on', b.dataset.v === $('theme').value));
+}
+function syncPos() { document.querySelectorAll('#posPick button').forEach(b => b.classList.toggle('on', b.dataset.v === $('pos').value)); }
+const pick = (sel, id, sync) => document.querySelectorAll(sel).forEach(b => b.onclick = () => { $(id).value = b.dataset.v; sync(); save(); });
+pick('#themes button', 'theme', syncTheme);
+pick('#posPick button', 'pos', syncPos);
+// всё сохраняется сразу: переключатели — по клику, числа — когда ушёл из поля
+['opacity', 'music', 'tg', 'lang', 'fullscreen', 'upd', 'auto', ...FX].forEach(id => $(id).addEventListener('input', save));
+['poll', 'warn', 'alarm', 'swap', 'pomo'].forEach(id => $(id).addEventListener('change', save));
 
 /* горячая клавиша: клик по полю — запись, нажми сочетание */
 $('hotkey').onclick = () => { $('hotkey').classList.add('rec'); $('hotkey').value = t('Нажми сочетание…'); };
@@ -221,6 +387,7 @@ $('hkClear').onclick = () => { hk = ''; save(); };
 async function hooks() {
   const h = await invoke('hooks_status');
   st('hookSt', h.on ? t('Подключено') : t('Не подключено'), h.on ? 'ok' : '');
+  h.on ? ov('oCode', 'dCode', t('Подключено'), 'ok') : ov('oCode', 'dCode', t('Не подключено'));
   $('hookBtn').textContent = h.on ? t('Отключить') : t('Подключить');
   $('hookBtn').className = h.on ? '' : 'pri';
   $('hookBtn').dataset.on = h.on ? '1' : '';
@@ -232,16 +399,21 @@ $('hookBtn').onclick = async () => {
 };
 
 /* обновления */
+function gotUpdate(v) {
+  newVer = v; st('updSt', t('Доступно обновление {0}', v), 'ok');
+  $('updBtn').textContent = t('Обновить до {0}', v); $('updBtn').className = 'pri';
+  ov('oUpd', null, t('Доступно обновление {0}', v), 'ok');
+}
 $('updBtn').onclick = async () => {
   if (newVer) { st('updSt', t('Скачиваю…')); try { await invoke('install_update'); } catch (e) { st('updSt', t('Ошибка: {0}', e), 'bad'); } return; }
   st('updSt', t('Проверяю…'));
   try {
     const v = await invoke('check_update');
-    if (v) { newVer = v; st('updSt', t('Доступно обновление {0}', v), 'ok'); $('updBtn').textContent = t('Обновить до {0}', v); $('updBtn').className = 'pri'; }
+    if (v) gotUpdate(v);
     else st('updSt', t('Версия {0} — последняя', await invoke('app_version')), 'ok');
   } catch { st('updSt', t('Не удалось проверить'), 'bad'); }
 };
-listen('update-available', e => { newVer = e.payload; st('updSt', t('Доступно обновление {0}', e.payload), 'ok'); $('updBtn').textContent = t('Обновить до {0}', e.payload); $('updBtn').className = 'pri'; });
+listen('update-available', e => gotUpdate(e.payload));
 
 $('logBtn').onclick = () => invoke('open_log');
 
@@ -249,14 +421,15 @@ $('logBtn').onclick = () => invoke('open_log');
 async function login() { try { await invoke('claude_login'); st('keyStatus', t('Войди в открывшемся окне — ключ сохранится сам')); } catch (e) { st('keyStatus', t('Ошибка: {0}', e), 'bad'); } }
 $('login').onclick = login;
 $('wLogin').onclick = login;
-listen('login-done', e => {
-  const u = e.payload;
+function keyResult(u) {
   u.ok ? st('keyStatus', t('✓ Работает: 5 ч — {0}%, неделя — {1}%', Math.round(u.pct), Math.round(u.week_pct)), 'ok')
        : st('keyStatus', t('Ключ сохранён, но: {0}', t(u.error)), 'bad');
-  $('w1').classList.add('done'); $('login').textContent = t('Войти заново');
-});
+  u.ok ? ov('oClaude', 'dClaude', t('Работает: 5 ч — {0}%, неделя — {1}%', Math.round(u.pct), Math.round(u.week_pct)), 'ok')
+       : ov('oClaude', 'dClaude', t(u.error), 'bad');
+}
+listen('login-done', e => { keyResult(e.payload); $('w1').classList.add('done'); $('login').textContent = t('Войти заново'); });
 $('wHooks').onclick = async () => { try { await invoke('set_hooks', { on: true }); $('w2').classList.add('done'); hooks(); } catch {} };
-$('wTg').onclick = async () => { await tgDiag(); $('w3').classList.add('done'); document.getElementById('tgCard').scrollIntoView({ behavior: 'smooth' }); };
+$('wTg').onclick = async () => { await tgDiag(); $('w3').classList.add('done'); go('tg'); };
 $('wDone').onclick = () => { try { localStorage.setItem('ci-welcomed', '1'); } catch {} $('welcome').hidden = true; };
 
 /* Telegram: что работает, а что нет */
@@ -268,8 +441,13 @@ async function tgDiag() {
     line(d.running, t('Telegram Desktop запущен'), t('Telegram Desktop не запущен')) +
     line(d.seen_toasts, t('Уведомления Telegram приходят в Windows'), t('Уведомлений Telegram в Windows пока не было — проверь настройки ниже')) +
     (d.running ? `<div>${t('Непрочитанных по заголовку окна: {0}', d.title_count ?? 0)}</div>` : '');
+  if (!$('tg').checked) ov('oTg', 'dTg', t('Выключено'));
+  else if (d.access !== 'allowed') ov('oTg', 'dTg', t('Нет доступа к уведомлениям'), 'bad');
+  else if (!d.running) ov('oTg', 'dTg', t('Telegram Desktop не запущен'), 'bad');
+  else ov('oTg', 'dTg', d.seen_toasts ? t('Работает') : t('Работает по счётчику в заголовке'), 'ok');
 }
 $('tgCheck').onclick = tgDiag;
+$('tg').addEventListener('input', tgDiag);
 $('tgOpenWin').onclick = () => invoke('open_win_settings', { page: 'notifications' });
 
 $('keySave').onclick = async () => {
@@ -278,9 +456,8 @@ $('keySave').onclick = async () => {
   try {
     const u = await invoke('set_session_key', { key: k });
     $('key').value = '';
-    if (!k) return st('keyStatus', t('Ключ удалён'));
-    u.ok ? st('keyStatus', t('✓ Работает: 5 ч — {0}%, неделя — {1}%', Math.round(u.pct), Math.round(u.week_pct)), 'ok')
-         : st('keyStatus', t('Ключ сохранён, но: {0}', t(u.error)), 'bad');
+    if (!k) { ov('oClaude', 'dClaude', t('Нужно войти в claude.ai'), 'bad'); return st('keyStatus', t('Ключ удалён')); }
+    keyResult(u);
   } catch (e) { st('keyStatus', t('Ошибка: {0}', e), 'bad'); }
 };
 $('key').addEventListener('keydown', e => { if (e.key === 'Enter') $('keySave').click(); });

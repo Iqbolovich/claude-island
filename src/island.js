@@ -131,7 +131,7 @@ function spark() {
   const start = S.resetAt - W5, x = t => ((t - start) / W5 * 300).toFixed(1), y = p => (28 - p * .26).toFixed(1);
   const pts = S.hist.map(([t, p]) => `${x(t)},${y(p)}`).join(' ');
   const last = S.hist.at(-1), c = color(S.pct);
-  $('spark').innerHTML = `<line x1="0" y1="${y(CFG.warn)}" x2="300" y2="${y(CFG.warn)}" stroke="rgba(255,255,255,.18)" stroke-dasharray="3 3"/>
+  $('spark').innerHTML = `<line x1="0" y1="${y(CFG.warn)}" x2="300" y2="${y(CFG.warn)}" stroke="var(--track)" stroke-dasharray="3 3"/>
    <polygon class="ar" points="${x(start)},28 ${pts} ${x(last[0])},28" fill="${c}" opacity=".15"/>
    <polyline class="ln" pathLength="1" points="${pts}" fill="none" stroke="${c}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
    <circle cx="${x(last[0])}" cy="${y(last[1])}" r="2.5" fill="${c}"/>`;
@@ -248,7 +248,7 @@ setInterval(async () => {
 isl.addEventListener('click', e => {
   if (S.hidden) { unhide(); return; }
   if (isl.classList.contains('notif')) { clearTimeout(popT); setView('vFull'); return; }
-  if (e.target.closest('#tTg') && S.unread.length) { S.unread = []; invoke('mark_tg_read'); render(); }
+  if (e.target.closest('#tTg') && (S.unread.length || S.tgCount)) { S.unread = []; S.tgCount = 0; invoke('mark_tg_read'); render(); }
 });
 isl.addEventListener('contextmenu', e => { e.preventDefault(); S.hidden ? unhide() : hide(); });
 isl.addEventListener('keydown', e => {

@@ -1,7 +1,8 @@
 /* Claude Island — стили острова. Окно приложения прозрачное, фон рисует Windows. */
 :root{
-  --island:rgba(18,18,24,.42); --card:rgba(255,255,255,.07); --edge:rgba(255,255,255,.14); --track:rgba(255,255,255,.13);
-  --fg:#f2f2f5; --mute:#8e8e8e; --ok:#34c759; --warn:#ffcc00; --bad:#ff453a; --stale:#5f5f5f;
+  /* фон плотнее, подписи светлее: при .42 и сером #8e8e8e на светлых обоях текст пропадал */
+  --island:rgba(18,18,24,.68); --card:rgba(255,255,255,.07); --edge:rgba(255,255,255,.14); --track:rgba(255,255,255,.16);
+  --fg:#f2f2f5; --mute:rgba(235,235,245,.62); --ok:#34c759; --warn:#ffcc00; --bad:#ff453a; --stale:#5f5f5f;
   --claude:#d97757; --tg:#2aabee; --music:#fa2d48;
   --font:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
   color-scheme:dark;
@@ -186,6 +187,46 @@ html.tauri[data-theme="black"] .island.notif{background:#000;border:1px solid rg
 html.tauri[data-theme="black"]{--track:rgba(255,255,255,.14);--mute:#8e8e93;--stale:#5f5f63}
 html.tauri[data-theme="black"] .tile,html.tauri[data-theme="black"] .forecast{background:#141414;border:1px solid #1f1f1f;box-shadow:none}
 
+/* ---------- Остальные темы: форма и поведение те же, меняются только цвета и шрифт ---------- */
+/* общий сброс стеклянных бликов для непрозрачных тем */
+html.tauri[data-theme="light"] .island,html.tauri[data-theme="paper"] .island,
+html.tauri[data-theme="term"] .island,html.tauri[data-theme="sunset"] .island{text-shadow:none}
+
+/* Светлое стекло — под светлую тему Windows */
+html.tauri[data-theme="light"]{--fg:#1b1b1f;--mute:#5d5d66;--stale:#a0a0a8;--track:rgba(0,0,0,.1);--card:rgba(255,255,255,.6)}
+html.tauri[data-theme="light"] .island,html.tauri[data-theme="light"] .island.open,html.tauri[data-theme="light"] .island.notif{
+  background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.35)),rgba(244,245,248,min(.92,calc(var(--island-a) + .25)));
+  border:1px solid rgba(255,255,255,.85);box-shadow:inset 0 1px 0 #fff,0 0 0 .5px rgba(0,0,0,.08)}
+html.tauri[data-theme="light"] .tile,html.tauri[data-theme="light"] .forecast{background:rgba(255,255,255,.62);border:1px solid rgba(0,0,0,.06);box-shadow:none}
+html.tauri[data-theme="light"] .volglow i{background:linear-gradient(90deg,rgba(0,0,0,.25),#222);box-shadow:none}
+
+/* Тёплая бумага — цвета Claude */
+html.tauri[data-theme="paper"]{--fg:#2b2622;--mute:#7d7266;--stale:#b3a99c;--track:#e3dacb;--card:#fbf8f2;--ok:#5f9e55;--warn:#c9962b;--bad:#c4452f}
+html.tauri[data-theme="paper"] .island,html.tauri[data-theme="paper"] .island.open,html.tauri[data-theme="paper"] .island.notif{
+  background:#f4efe6;border:1px solid #e0d7c8;box-shadow:inset 0 1px 0 #fffaf2}
+html.tauri[data-theme="paper"] .tile,html.tauri[data-theme="paper"] .forecast{background:#fbf8f2;border:1px solid #e9e1d3;box-shadow:none}
+html.tauri[data-theme="paper"] .brand,html.tauri[data-theme="paper"] #song{font-family:Georgia,"Iowan Old Style",serif}
+html.tauri[data-theme="paper"] .volglow i{background:var(--claude);box-shadow:0 0 6px rgba(217,119,87,.7)}
+
+/* Терминал — моноширинный шрифт, зелёный */
+html.tauri[data-theme="term"]{--fg:#c8f7d6;--mute:#6f9c7e;--stale:#3f5e4a;--track:#163021;--card:rgba(57,255,140,.04);--ok:#39ff8c;--warn:#ffd24a;--bad:#ff5f56;--claude:#39ff8c}
+html.tauri[data-theme="term"] .island{font-family:"Cascadia Code","Cascadia Mono",Consolas,monospace}
+html.tauri[data-theme="term"] .island,html.tauri[data-theme="term"] .island.open,html.tauri[data-theme="term"] .island.notif{
+  background:rgba(6,12,9,min(.95,calc(var(--island-a) + .35)));border:1px solid #1f4a30;box-shadow:inset 0 0 18px rgba(57,255,140,.07)}
+html.tauri[data-theme="term"] .tile,html.tauri[data-theme="term"] .forecast{background:transparent;border:1px dashed #24503a;box-shadow:none}
+html.tauri[data-theme="term"] .bar,html.tauri[data-theme="term"] .bar span{border-radius:0}
+html.tauri[data-theme="term"] .volglow i{background:#39ff8c;box-shadow:0 0 8px #39ff8c}
+
+/* Закат — цветной градиент */
+html.tauri[data-theme="sunset"]{--fg:#fff;--mute:rgba(255,255,255,.78);--stale:rgba(255,255,255,.5);--track:rgba(255,255,255,.25);--card:rgba(255,255,255,.14);--ok:#fff;--warn:#ffe27a;--tg:#1d8fd1}
+html.tauri[data-theme="sunset"] .island,html.tauri[data-theme="sunset"] .island.open,html.tauri[data-theme="sunset"] .island.notif{
+  background:linear-gradient(120deg,#5b3df5 0%,#c2417a 55%,#f08a4b 100%);border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+html.tauri[data-theme="sunset"] .tile,html.tauri[data-theme="sunset"] .forecast{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);box-shadow:none}
+html.tauri[data-theme="sunset"] .logo{background:#fff}
+
+/* на светлых темах иконки на цветном фоне оставляем белыми */
+.tgicon,.cover{color:#fff}
+
 /* громкость — линейное свечение */
 .volglow{position:absolute;left:18px;right:18px;bottom:3px;height:2px;border-radius:2px;z-index:3;pointer-events:none;
   opacity:0;transform:scaleY(.5);transition:opacity .35s ease,transform .35s ease}
@@ -201,9 +242,9 @@ html.tauri[data-theme="black"] .tile,html.tauri[data-theme="black"] .forecast{ba
 
 /* плашка */
 .chipview{display:flex;align-items:center;gap:10px;padding:0 16px;white-space:nowrap}
-.chipview #cText{font-size:13px;font-weight:600;color:#fff}
+.chipview #cText{font-size:13px;font-weight:600;color:var(--fg)}
 .cico{width:22px;height:22px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;
-  background:rgba(255,255,255,.14);color:#fff}
+  background:var(--track);color:var(--fg)}
 .chipview.green .cico{background:#34c759;color:#000}
 .chipview.amber .cico{background:#ff9f0a;color:#000}
 .chipview.red .cico{background:#ff453a;color:#fff}

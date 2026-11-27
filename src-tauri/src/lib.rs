@@ -272,7 +272,7 @@ fn show_settings(app: &AppHandle) {
     }
     let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
         .title("Claude Island — настройки")
-        .inner_size(460.0, 680.0)
+        .inner_size(780.0, 600.0)
         .resizable(false)
         .maximizable(false)
         .center()
@@ -322,6 +322,9 @@ async fn claude_login(app: AppHandle) -> Result<(), String> {
         .inner_size(480.0, 760.0)
         .center()
         .focused(true)
+        // «Продолжить через Google/Apple» открывают вход во всплывающем окне (window.open)
+        // и ждут ответа через window.opener — без этого claude.ai пишет «ошибка при входе»
+        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Allow)
         .build()
         .map_err(|e| e.to_string())?;
     let _ = win.set_always_on_top(true);

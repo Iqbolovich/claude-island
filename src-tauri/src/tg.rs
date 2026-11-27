@@ -168,6 +168,7 @@ pub fn start(app: AppHandle) {
         let mut last_err = String::new();
         let mut last_count = 0u32;
         let mut base: Option<u32> = None;
+        let mut prev_raw: Option<u32> = None;
         let mut last_fallback: Option<std::time::Instant> = None;
         let mut tick = 0u32;
         loop {
@@ -176,14 +177,25 @@ pub fn start(app: AppHandle) {
             let on = app.state::<crate::AppState>().settings.lock().unwrap().show_telegram;
             let mut st = State { status: "off".into(), items: vec![], count: 0 };
             if on {
-                if let Some(raw) = title_unread() {
-                    // отсчёт от числа при запуске / после «прочитано»; прочитал в Telegram — число
-                    // в заголовке упало, опускаем и точку отсчёта
-                    if RESET_BASE.swap(false, std::sync::atomic::Ordering::Relaxed) { base = Some(raw); }
-                    let b = base.map_or(raw, |b| b.min(raw));
-                    base = Some(b);
-                    // уведомления Windows работают — тексты берём оттуда, счётчик заголовка не нужен
-                    if !SEEN_TG.load(std::sync::atomic::Ordering::Relaxed) { st.count = raw - b; }
+                match title_unread() {
+                    Some(raw) => {
+                        // отсчёт от числа при запуске / после «прочитано»; прочитал в Telegram — число
+                        // в заголовке упало, опускаем и точку отсчёта
+                        if RESET_BASE.swap(false, std::sync::atomic::Ordering::Relaxed) { base = Some(raw); }
+                        // скачок за 1,5 с больше чем на 50 — это не новые сообщения, а заголовок
+                        // без числа (Telegram запускается, окно перерисовывается) вернулся к полному
+                        // числу: сдвигаем точку отсчёта вместе с ним
+                        if let (Some(b), Some(p)) = (base, prev_raw) {
+                            if raw > p + 50 { base = Some(b + (raw - p)); }
+                        }
+                        let b = base.map_or(raw, |b| b.min(raw));
+                        base = Some(b);
+                        prev_raw = Some(raw);
+                        // уведомления Windows работают — тексты берём оттуда, счётчик заголовка не нужен
+                        if !SEEN_TG.load(std::sync::atomic::Ordering::Relaxed) { st.count = raw - b; }
+                    }
+                    // Telegram закрыт — при следующем запуске отсчёт заново
+                    None => { base = None; prev_raw = None; }
                 }
             }
             if on && access == Access::Allowed {
