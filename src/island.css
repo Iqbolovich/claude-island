@@ -284,3 +284,162 @@ html.tauri[data-theme="sunset"] .logo{background:#fff}
 .mglow.pause{animation:mPause .9s cubic-bezier(.4,0,.6,1)}
 @keyframes mPlay{0%{opacity:0;--mr:0%}15%{opacity:1}100%{opacity:0;--mr:110%}}
 @keyframes mPause{0%{opacity:0;--mr:110%}20%{opacity:.85}100%{opacity:0;--mr:0%}}
+
+/* ================= Форма «Вырез» =================
+   Остров растёт из верхнего края экрана: сверху прямые углы, по бокам вогнутые «ушки»,
+   снизу скругление. Окно шире острова на 2×12 px — в эти поля рисуются ушки. */
+.ear{display:none;position:absolute;top:0;width:12px;height:12px;z-index:5;pointer-events:none;
+  background:var(--earbg,#000);transition:opacity .2s}
+.ear.l{left:0;-webkit-mask:radial-gradient(circle at 0 100%,transparent 11.5px,#000 12px);mask:radial-gradient(circle at 0 100%,transparent 11.5px,#000 12px)}
+.ear.r{right:0;-webkit-mask:radial-gradient(circle at 100% 100%,transparent 11.5px,#000 12px);mask:radial-gradient(circle at 100% 100%,transparent 11.5px,#000 12px)}
+html.tauri[data-shape="notch"] .ear{display:block}
+html.tauri[data-shape="notch"] .stage:has(.island.hidden) .ear{opacity:0}
+html.tauri[data-shape="notch"] .stage .island{left:12px!important;height:30px;border-radius:0 0 15px 15px;border-top-width:0;
+  box-shadow:none;text-shadow:none;
+  transition:width .55s cubic-bezier(.32,.72,0,1),height .55s cubic-bezier(.32,.72,0,1),border-radius .55s cubic-bezier(.32,.72,0,1),opacity .3s,transform .4s var(--out)}
+html.tauri[data-shape="notch"] .stage .island.open,
+html.tauri[data-shape="notch"] .stage .island.notif{border-radius:0 0 22px 22px;box-shadow:none}
+html.tauri[data-shape="notch"] .stage .island.chip{border-radius:0 0 15px 15px}
+html.tauri[data-shape="notch"] .stage .island.hidden{height:6px;border-radius:0 0 6px 6px}
+html.tauri[data-shape="notch"] .stage .island:not(.open):active{transform:scale(.97);transform-origin:50% 0}
+html.tauri[data-shape="notch"] .compact{padding:0 11px;gap:12px}
+html.tauri[data-shape="notch"] .ring{width:18px;height:18px}
+html.tauri[data-shape="notch"] .pct{font-size:12.5px}
+html.tauri[data-shape="notch"] .timer{font-size:12px}
+/* фон ушек = фон острова у верхнего края, по темам */
+html.tauri[data-shape="notch"]{--earbg:linear-gradient(rgba(255,255,255,.26),rgba(255,255,255,.26)),rgba(28,30,34,min(.85,calc(var(--island-a) + .05)))}
+html.tauri[data-shape="notch"][data-theme="black"]{--earbg:#000}
+html.tauri[data-shape="notch"][data-theme="light"]{--earbg:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,.55)),rgba(244,245,248,min(.92,calc(var(--island-a) + .25)))}
+html.tauri[data-shape="notch"][data-theme="paper"]{--earbg:#f4efe6}
+html.tauri[data-shape="notch"][data-theme="term"]{--earbg:rgba(6,12,9,min(.95,calc(var(--island-a) + .35)))}
+html.tauri[data-shape="notch"][data-theme="sunset"] .ear.l{background:#5b3df5}
+html.tauri[data-shape="notch"][data-theme="sunset"] .ear.r{background:#f08a4b}
+
+/* раскрытый вид выреза: карточки в ряд */
+.nfull{padding:9px 12px 10px;display:flex;flex-direction:column;gap:6px}
+.nhead{display:flex;justify-content:space-between;align-items:center;height:18px}
+.nhead .brand{gap:7px}
+.nhead .logo{width:13px;height:13px;border-radius:4px}
+.nhead .hide{font-size:13px}
+.ncols{display:flex;gap:6px;height:86px}
+.nc{flex:none;background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:11px;padding:7px 9px;min-width:0;overflow:hidden}
+.nc[hidden]{display:none}
+.nc .h{font-size:10px;color:var(--mute);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;white-space:nowrap;gap:6px}
+html.tauri[data-theme="black"] .nc{background:#141414;border-color:#1f1f1f}
+html.tauri[data-theme="light"] .nc,html.tauri[data-theme="paper"] .nc{border-color:rgba(0,0,0,.07)}
+html.tauri[data-theme="term"] .nc{background:transparent;border:1px dashed #24503a}
+/* лесенка: шапка и карточки проявляются по очереди */
+.nfull>.nhead,.ncols>.nc{opacity:0;transform:translateY(-6px);filter:blur(4px);transition:opacity .12s,transform .15s,filter .12s}
+.nfull.on>.nhead,.nfull.on .ncols>.nc{opacity:1;transform:none;filter:none;
+  transition:opacity .35s ease,transform .45s cubic-bezier(.32,.72,0,1),filter .35s ease;transition-delay:calc(.14s + var(--i,0)*.04s)}
+.nfull:not(.on) .bar span{width:0!important}
+.nfull.on .bar span{transition:width .9s var(--out) .3s,background .4s}
+/* плеер */
+.nplayer{width:196px;display:flex;flex-direction:column;justify-content:space-between}
+.nplayer .pr{display:flex;align-items:center;gap:8px;min-width:0}
+.ncover{width:30px;height:30px;border-radius:7px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.nplayer .trk{min-width:0;flex:1;line-height:1.2}
+.nplayer .trk b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nplayer .trk small{display:block;font-size:10.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nplayer .eq{height:12px}.nplayer .eq i{width:2px;height:12px}
+.pb{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--mute)}
+.pb .prog{flex:1;margin:0;height:3px;cursor:pointer}
+.pb .prog:hover{height:5px}
+.nctl{display:flex;justify-content:center;align-items:center;gap:14px}
+.nctl button{background:none;border:0;padding:2px;cursor:pointer;display:grid;place-items:center;border-radius:50%}
+.nctl svg{width:13px;height:13px;fill:var(--fg);opacity:.85}
+.nctl .pp{width:22px;height:22px;background:var(--fg)}
+.nctl .pp svg{width:11px;height:11px;fill:var(--island-solid,#000);opacity:1}
+html.tauri[data-theme="light"] .nctl .pp svg,html.tauri[data-theme="paper"] .nctl .pp svg{fill:#fff}
+.nctl button:disabled{opacity:.35;cursor:default}
+.island:not(.hasMedia) .pb{visibility:hidden}
+/* лимиты */
+.nlim{width:128px}
+.nlim .big{font-size:18px;font-weight:700;line-height:1}
+.nlim .big small{font-size:10px;color:var(--mute);font-weight:400}
+.nlim .bar{height:4px;margin:4px 0 3px}
+.nlim .lbl{font-size:10px;color:var(--mute);display:flex;justify-content:space-between}
+/* Claude Code */
+.ncode{width:112px}
+.cst{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:3px;white-space:nowrap}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--mute);flex:none}
+.cdot.work{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.cdot.wait{background:#ff9f0a;box-shadow:0 0 8px #ff9f0a}
+.ncode p,.ntg p{margin:0;font-size:10.5px;color:var(--mute);line-height:1.3}
+/* Telegram: только имена и число непрочитанных */
+.ntg{width:132px}
+.ntg .dot{display:grid;min-width:15px;height:15px;font-size:9.5px;color:#fff}
+.ntg .dot:empty{display:none}
+.tgm{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;font-weight:600;white-space:nowrap}
+.tgm .av{width:18px;height:18px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:9px;font-weight:700;color:#fff}
+.tgm span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tgm em{margin-left:auto;font-style:normal;font-weight:400;font-size:10px;color:var(--mute)}
+/* дата */
+.ncal{width:84px;text-align:center}
+.ncal .mon{font-size:15px;font-weight:700;margin:1px 0 5px}
+.ncal .days{display:flex;justify-content:space-between;font-size:8.5px;color:var(--mute)}
+.ncal .days div{display:flex;flex-direction:column;gap:1px}
+.ncal .days b{font-size:11px;color:var(--fg);opacity:.8}
+.ncal .days .today b{color:#4a9dff;opacity:1}
+.ncal p{margin:5px 0 0;font-size:10px;color:var(--mute)}
+/* в вырезе контур не светится: статус Claude виден точкой в карточке Code */
+html.tauri[data-shape="notch"] .island::after{display:none}
+html.tauri[data-shape="notch"] .mglow{box-shadow:none}
+
+/* ---- вырез как в макете ---- */
+/* свёрнутый: зелёная точка «Code работает» и синий счётчик Telegram вместо таймера */
+html.tauri[data-shape="notch"] .compact .timer{display:none}
+html.tauri[data-shape="notch"] .compact .dot{display:grid;min-width:16px;height:16px;font-size:10px;color:#fff}
+html.tauri[data-shape="notch"] .island:not(.hasUnread) .compact .dot{display:none}
+.wdot{display:none;width:7px;height:7px;border-radius:50%;flex:none}
+html.tauri[data-shape="notch"] .island.thinking .wdot{display:block;background:#34c759;box-shadow:0 0 8px #34c759;animation:wpulse 1.6s ease-in-out infinite}
+html.tauri[data-shape="notch"] .island.waiting .wdot{display:block;background:#ff9f0a;box-shadow:0 0 8px #ff9f0a;animation:wpulse .9s ease-in-out infinite}
+@keyframes wpulse{50%{opacity:.35}}
+/* вкладки */
+.tabs{display:flex;gap:4px}
+.tab{background:none;border:0;font:inherit;font-size:11px;font-weight:600;color:var(--mute);padding:2px 9px;border-radius:10px;cursor:pointer}
+.tab:hover{color:var(--fg)}
+.tab.on{background:var(--track);color:var(--fg)}
+#vNotch[data-tab="msg"] .nc:not(.ntg),#vNotch[data-tab="code"] .nc:not(.ncode){display:none}
+#vNotch[data-tab="msg"] .ntg,#vNotch[data-tab="code"] .ncode{width:300px}
+.ncode .more{display:none}
+#vNotch[data-tab="code"] .ncode .more{display:block;margin-top:4px;color:var(--fg);opacity:.75}
+html.tauri[data-shape="notch"] .compact .dot{order:2}
+html.tauri[data-shape="notch"] .island.celebrate{animation:none}
+/* вырез всегда чисто чёрный и без рамки — как настоящий вырез экрана */
+html.tauri[data-shape="notch"] .stage .island{background:#000;border:0}
+html.tauri[data-shape="notch"] .ear{background:#000!important}
+/* скругления концентричны: радиус выреза = радиус карточки (12) + отступ до края (10) */
+.nc{border-radius:12px}
+html.tauri[data-shape="notch"] .stage .island.open{border-radius:0 0 22px 22px}
+.nfull{padding-left:10px;padding-right:10px}
+/* уведомление в вырезе: своя высота (общая 30 px его обрезала) */
+html.tauri[data-shape="notch"] .stage .island.notif{height:58px}
+html.tauri[data-shape="notch"] .nview{padding:4px 18px 0}
+
+/* ================= Громкость в вырезе ================= */
+.nvol{display:none}
+html.tauri[data-shape="notch"] .nvol{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;
+  pointer-events:none;opacity:0;filter:blur(4px);transform:scale(.9);transition:opacity .2s,filter .2s,transform .3s}
+.nvol svg{width:16px;height:16px;fill:var(--fg);flex:none}
+.nvol b{font-size:14px;font-weight:600;min-width:38px;text-align:right}
+html.tauri[data-shape="notch"] .stage .island.volshow:not(.open):not(.notif):not(.chip){height:40px;border-radius:0 0 20px 20px}
+html.tauri[data-shape="notch"] .island.volshow:not(.open):not(.notif):not(.chip) .nvol{opacity:1;filter:none;transform:none;transition-delay:.06s}
+html.tauri[data-shape="notch"] .island.volshow:not(.open):not(.notif):not(.chip) .compact{opacity:0;filter:blur(4px);transform:scale(1.1)}
+.island.silent .nvol b{color:#ff6b5a}
+/* свет: светится сам нижний контур выреза; плавно начинается слева, длина = громкость */
+.vglow2{display:none}
+html.tauri[data-shape="notch"] .vglow2{display:block;position:absolute;left:-18px;top:0;width:256px;height:70px;pointer-events:none;opacity:0;z-index:0;
+  --gc:52,199,89;--w:196px;--len:calc(var(--w) * var(--v,0) / 100);
+  -webkit-mask:linear-gradient(90deg,transparent calc(30px - var(--len) * .1),#000 calc(30px + var(--len) * .35),#000 calc(30px + var(--len) * .7),transparent calc(30px + var(--len) * 1.05)),
+    linear-gradient(180deg,transparent 0,transparent 14px,#000 34px);
+  -webkit-mask-composite:source-in;mask-composite:intersect;transition:opacity .35s}
+html.tauri[data-shape="notch"] .vglow2.on{opacity:1}
+html.tauri[data-shape="notch"] .vglow2.red{--gc:255,69,58}
+.vglow2 i{position:absolute;left:30px;top:0;width:196px;height:40px;border-radius:0 0 20px 20px;
+  opacity:calc(.35 + var(--v,0) / 155);box-shadow:0 3px 10px rgba(var(--gc),.6),0 8px 24px rgba(var(--gc),.28)}
+html.tauri[data-shape="notch"] .stage .island{z-index:1}
+
+/* обложка и название трека кликабельны — открывают программу, которая играет */
+.hasMedia .nplayer .pr,.hasMedia #cover,.hasMedia #song{cursor:pointer}
+.hasMedia .nplayer .pr:hover .trk b,.hasMedia #song:hover{text-decoration:underline;text-underline-offset:2px}

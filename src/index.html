@@ -9,6 +9,10 @@
 <body>
 <!-- stage = всё окно. Окно прозрачное и click-through; остров прижат к краю по пресету -->
 <div class="stage" id="stage" data-pos="tc">
+  <!-- «ушки» выреза: плавный переход острова в верхний край экрана -->
+  <i class="ear l"></i><i class="ear r"></i>
+  <!-- громкость в вырезе: мягкий свет наружу из-под нижнего края -->
+  <div class="vglow2" id="vGlow2"><i></i></div>
   <div class="island" id="island" tabindex="0" aria-label="Claude Island">
     <div class="mglow" id="mGlow"></div>
     <div class="volglow" id="volGlow"><i id="vFill"></i></div>
@@ -22,6 +26,7 @@
         </svg>
         <span class="pct num" id="cPct">—</span>
         <span class="pdot" id="pdot"></span>
+        <span class="wdot"></span>
       </div>
       <div class="row">
         <span class="dot num" id="dot"></span>
@@ -76,6 +81,62 @@
         </div>
       </div>
     </div>
+
+    <!-- раскрытый вид для формы «вырез»: карточки в ряд -->
+    <div class="view nfull" id="vNotch">
+      <div class="nhead">
+        <div class="tabs" id="nTabs">
+          <button class="tab on" data-tab="all" data-t>Обзор</button>
+          <button class="tab" data-tab="msg" data-t>Сообщения</button>
+          <button class="tab" data-tab="code">Code</button>
+        </div>
+        <div class="row">
+          <button class="hide" id="nTimer" data-tt="Таймер">⏱</button>
+          <button class="hide" id="nSet" data-tt="Настройки">⚙</button>
+          <button class="hide" id="nHide" data-tt="Скрыть остров">⌃</button>
+        </div>
+      </div>
+      <div class="ncols">
+        <div class="nc nplayer" id="nMusic">
+          <div class="pr">
+            <div class="cover ncover" id="nCover">♪</div>
+            <div class="trk"><b id="nSong"></b><small id="nArtist"></small></div>
+            <div class="eq"><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="pb num"><span id="nPos">0:00</span><div class="prog" id="nBar"><span id="nProg"></span></div><span id="nDur">0:00</span></div>
+          <div class="nctl">
+            <button id="nPrev" data-tt="Предыдущий трек"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+            <button class="pp" id="nPlay" data-tt="Играть или пауза"><svg viewBox="0 0 24 24"><path id="nPlayIco" d="M8 5v14l11-7z"/></svg></button>
+            <button id="nNext" data-tt="Следующий трек"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+          </div>
+        </div>
+        <div class="nc nlim">
+          <div class="h"><span>Claude</span><span class="num" id="nReset"></span></div>
+          <div class="big num"><span id="nPct">—</span> <small data-t>сессия</small></div>
+          <div class="bar"><span id="nb5"></span></div>
+          <div class="lbl"><span data-t>Неделя</span><span class="num" id="nWeek">—</span></div>
+          <div class="bar"><span id="nbw"></span></div>
+        </div>
+        <div class="nc ncode">
+          <div class="h"><span>Claude Code</span></div>
+          <div class="cst"><span class="cdot" id="nCdot"></span><b id="nCode"></b></div>
+          <p id="nCodeSub"></p>
+          <p class="more" id="nCodeMore"></p>
+        </div>
+        <div class="nc ntg" id="nTg">
+          <div class="h"><span>Telegram</span><span class="dot num" id="nTgN"></span></div>
+          <div id="nTgList"></div>
+        </div>
+        <div class="nc ncal">
+          <div class="mon" id="nMon"></div>
+          <div class="days" id="nDays"></div>
+          <p class="num" id="nClock"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- громкость в вырезе: значок и процент -->
+    <div class="nvol" id="nVol"><svg viewBox="0 0 24 24"><path id="vIco"/></svg><b class="num" id="vPct"></b></div>
 
     <!-- короткая плашка: готово, ждёт, скопировано, зарядка, наушники -->
     <div class="view chipview" id="vChip"><span class="cico" id="cIco"></span><span id="cText"></span></div>

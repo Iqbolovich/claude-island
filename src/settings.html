@@ -87,6 +87,16 @@ input[type=checkbox]:checked::after{transform:translateX(16px)}
 .themes button:hover{background:#262626}
 .themes button.on{border-color:var(--acc);background:rgba(217,119,87,.08)}
 .themes i{display:block;width:84px;height:22px;border-radius:11px;border:1px solid}
+/* форма острова */
+.shapes{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 0}
+.shapes button{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 6px 12px;border-radius:12px;background:#1d1d1d;border:1.5px solid var(--edge);font-size:12px;overflow:hidden}
+.shapes button:hover{background:#262626}
+.shapes button.on{border-color:var(--acc);background:rgba(217,119,87,.08)}
+.shapes .scr{width:100%;height:46px;background:linear-gradient(135deg,#2c4a6b,#5a3a34);position:relative}
+.shapes .scr i{position:absolute;left:50%;translate:-50% 0;background:#000;display:block}
+.shapes .pill i{top:10px;width:76px;height:20px;border-radius:10px;border:1px solid #333}
+.shapes .notch i{top:0;width:76px;height:18px;border-radius:0 0 10px 10px}
+.posoff{opacity:.35;pointer-events:none}
 /* схема экрана: где стоит остров */
 .screen{width:200px;height:118px;border-radius:8px;border:2px solid #444;background:linear-gradient(135deg,#2c4a6b,#5a3a34);position:relative;flex:none}
 .screen::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:rgba(0,0,0,.45)}
@@ -148,6 +158,14 @@ input[type=checkbox]:checked::after{transform:translateX(16px)}
 <section class="page" id="p-look">
   <h1 data-t>Оформление</h1>
   <p class="lead" data-t>Меняется сразу, остров перекрасится на глазах.</p>
+  <h2 data-t>Форма</h2>
+  <div class="card">
+    <div class="shapes" id="shapes">
+      <button data-v="pill"><span class="scr pill"><i></i></span><span data-t>Капсула</span></button>
+      <button data-v="notch"><span class="scr notch"><i></i></span><span data-t>Вырез</span></button>
+    </div>
+    <select id="shape" hidden><option value="pill"></option><option value="notch"></option></select>
+  </div>
   <h2 data-t>Тема</h2>
   <div class="card">
     <div class="themes" id="themes">
@@ -158,6 +176,7 @@ input[type=checkbox]:checked::after{transform:translateX(16px)}
       <button data-v="term"><i style="background:#06120b;border-color:#39ff8c"></i><span data-t>Терминал</span></button>
       <button data-v="sunset"><i style="background:linear-gradient(120deg,#5b3df5,#c2417a 55%,#f08a4b);border-color:transparent"></i><span data-t>Закат</span></button>
     </div>
+    <div class="st" id="themeNotch" hidden style="padding:0 0 12px" data-t>Вырез всегда чёрный — темы меняют только капсулу.</div>
     <select id="theme" hidden><option value="black"></option><option value="glass"></option><option value="light"></option><option value="paper"></option><option value="term"></option><option value="sunset"></option></select>
     <div class="row" id="opRow"><label for="opacity" data-t>Прозрачность</label><input id="opacity" type="range" min=".25" max=".9" step=".05"></div>
   </div>
@@ -168,7 +187,7 @@ input[type=checkbox]:checked::after{transform:translateX(16px)}
         <button data-v="tl"></button><button data-v="tc"></button><button data-v="tr"></button>
         <button data-v="bl"></button><button data-v="bc"></button><button data-v="br"></button>
       </div>
-      <div class="st" data-t>Нажми на место на схеме экрана.</div>
+      <div class="st"><span id="posHint" data-t>Нажми на место на схеме экрана.</span><span id="posNotch" hidden data-t>Вырез всегда стоит сверху по центру экрана.</span></div>
     </div>
     <select id="pos" hidden><option value="tl"></option><option value="tc"></option><option value="tr"></option><option value="bl"></option><option value="bc"></option><option value="br"></option></select>
   </div>
@@ -318,11 +337,11 @@ async function load() {
   $('poll').value = cur.poll_secs; $('warn').value = cur.warn_at; $('alarm').value = cur.alarm_at;
   $('pos').value = cur.pos === 'free' ? 'tc' : cur.pos; $('opacity').value = cur.opacity; $('swap').value = cur.swap_secs;
   $('music').checked = cur.show_music; $('tg').checked = cur.show_telegram; $('auto').checked = cur.autostart;
-  $('theme').value = cur.theme || 'black'; $('lang').value = cur.lang || 'auto'; $('pomo').value = cur.pomodoro_min;
+  $('theme').value = cur.theme || 'black'; $('shape').value = cur.shape || 'pill'; $('lang').value = cur.lang || 'auto'; $('pomo').value = cur.pomodoro_min;
   $('fullscreen').checked = cur.hide_fullscreen; $('upd').checked = cur.auto_update;
   FX.forEach(k => $(k).checked = cur[k] !== false);
   hk = cur.hotkey || ''; $('hotkey').value = pretty(hk);
-  syncTheme(); syncPos(); hooks();
+  syncTheme(); syncPos(); syncShape(); hooks();
   if (!newVer) { $('updBtn').textContent = t('Проверить'); ov('oUpd', null, cur.auto_update ? t('Версия {0} · проверяются сами', ver) : t('Версия {0} · автопроверка выключена', ver)); }
   const hasKey = await invoke('has_session_key');
   hasKey ? st('keyStatus', t('Ключ сохранён и зашифрован'), 'ok') : st('keyStatus', t('Ключ не задан'));
@@ -340,7 +359,7 @@ function collect() {
   const warn = n('warn', 10, 99);
   const o = { ...cur, poll_secs: n('poll', 10, 900), warn_at: warn, alarm_at: Math.max(warn + 1, n('alarm', 10, 100)),
     pos: $('pos').value, opacity: +$('opacity').value, swap_secs: n('swap', 2, 30), pomodoro_min: n('pomo', 1, 180),
-    show_music: $('music').checked, show_telegram: $('tg').checked, autostart: $('auto').checked, theme: $('theme').value,
+    show_music: $('music').checked, show_telegram: $('tg').checked, autostart: $('auto').checked, theme: $('theme').value, shape: $('shape').value,
     lang: $('lang').value, hide_fullscreen: $('fullscreen').checked, auto_update: $('upd').checked, hotkey: hk };
   FX.forEach(k => o[k] = $(k).checked);
   return o;
@@ -360,10 +379,17 @@ function syncTheme() {
   $('opRow').style.display = ['glass', 'light', 'term'].includes($('theme').value) ? '' : 'none';
   document.querySelectorAll('#themes button').forEach(b => b.classList.toggle('on', b.dataset.v === $('theme').value));
 }
+function syncShape() {
+  const n = $('shape').value === 'notch';
+  document.querySelectorAll('#shapes button').forEach(b => b.classList.toggle('on', b.dataset.v === $('shape').value));
+  $('posPick').classList.toggle('posoff', n); $('posHint').hidden = n; $('posNotch').hidden = !n;
+  $('themes').classList.toggle('posoff', n); $('themeNotch').hidden = !n;
+}
 function syncPos() { document.querySelectorAll('#posPick button').forEach(b => b.classList.toggle('on', b.dataset.v === $('pos').value)); }
 const pick = (sel, id, sync) => document.querySelectorAll(sel).forEach(b => b.onclick = () => { $(id).value = b.dataset.v; sync(); save(); });
 pick('#themes button', 'theme', syncTheme);
 pick('#posPick button', 'pos', syncPos);
+pick('#shapes button', 'shape', syncShape);
 // всё сохраняется сразу: переключатели — по клику, числа — когда ушёл из поля
 ['opacity', 'music', 'tg', 'lang', 'fullscreen', 'upd', 'auto', ...FX].forEach(id => $(id).addEventListener('input', save));
 ['poll', 'warn', 'alarm', 'swap', 'pomo'].forEach(id => $(id).addEventListener('change', save));

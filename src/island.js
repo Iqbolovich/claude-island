@@ -21,6 +21,11 @@ try { S.hist = JSON.parse(localStorage.getItem('ci-hist') || '[]'); } catch {}
 
 // пороги и прочее приходят из настроек (settings-update)
 const CFG = { warn: 80, alarm: 95, swap: 4, tg: true, fx: {}, pomo: 25 };
+// форма «вырез»: свой раскрытый вид (карточки в ряд) и окно вплотную к верху экрана
+let NOTCH = false;
+const FULL = () => NOTCH ? 'vNotch' : 'vFull';
+const EAR = 12;   // ширина «ушка» выреза с каждой стороны
+const VOLW = 196, GLOWH = 30;   // вырез при смене громкости и запас окна снизу под свет
 const on = k => CFG.fx[k] !== false;
 const color = p => p >= CFG.alarm ? 'var(--bad)' : p >= CFG.warn ? 'var(--warn)' : 'var(--ok)';
 const fmt = ms => { ms = Math.max(0, ms); const s = Math.floor(ms / 1e3), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
@@ -33,14 +38,22 @@ function fit() {
   // высоту берём по последнему ВИДИМОМУ блоку: скрытые плитки (Telegram без сообщений) не в счёт
   const open = isl.classList.contains('open');
   const l = [...$('vFull').children].reverse().find(x => x.offsetHeight > 0) || $('vFull').lastElementChild;
-  isl.style.height = open && !S.hidden ? (l.offsetTop + l.offsetHeight + 18 + 2) + 'px' : '';
+  isl.style.height = open && !S.hidden ? (NOTCH ? '128px' : (l.offsetTop + l.offsetHeight + 18 + 2) + 'px') : '';
   const chip = isl.classList.contains('chip') && !S.hidden;
   const compact = !open && !S.hidden && !isl.classList.contains('notif') && !chip;
   const [a, b] = $('vCompact').children;
-  isl.style.width = compact ? (a.offsetWidth + b.offsetWidth + 14 + 24 + 2) + 'px'
-    : chip ? ($('cText').offsetWidth + 22 + 10 + 32 + 2) + 'px' : '';
+  isl.style.width = compact && NOTCH && isl.classList.contains('volshow') ? VOLW + 'px'
+    : compact ? (a.offsetWidth + b.offsetWidth + (NOTCH ? 12 + 22 : 14 + 24) + 2) + 'px'
+    : chip ? ($('cText').offsetWidth + 22 + 10 + 32 + 2) + 'px'
+    : open && NOTCH && !S.hidden ? notchWidth() + 'px' : '';
+}
+// ширина раскрытого выреза = сумма видимых карточек + промежутки + поля
+function notchWidth() {
+  const cs = [...document.querySelectorAll('#vNotch .nc')].filter(c => !c.hidden);
+  return cs.reduce((w, c) => w + c.offsetWidth, 0) + 6 * Math.max(0, cs.length - 1) + 20;
 }
 new ResizeObserver(fit).observe($('vFull'));
+new ResizeObserver(fit).observe($('vNotch'));
 
 // Окно приложения равно капсуле: так Windows может размыть под ней рабочий стол (Acrylic),
 // а клики снаружи проходят насквозь сами собой. Пружину рисует CSS, окно за ней следует.
@@ -58,7 +71,8 @@ function sendSize(sz) {
 function syncSize() {
   // окно не сжимается вслед за нажатием (scale < 1) — иначе оно дёргается; «толчок» вверх помещается
   const b = isl.getBoundingClientRect();
-  const w = Math.round(Math.max(b.width, isl.offsetWidth)), h = Math.round(Math.max(b.height, isl.offsetHeight));
+  const w = Math.round(Math.max(b.width, isl.offsetWidth)) + (NOTCH ? EAR * 2 : 0),
+    h = Math.round(Math.max(b.height, isl.offsetHeight)) + (NOTCH && $('vGlow2').classList.contains('on') ? GLOWH : 0);
   const key = w + ',' + h;
   if (key !== lastSize) { lastSize = key; sendSize({ w, h }); }
 }
@@ -84,13 +98,14 @@ if (TAURI) {
 /* ---------- виды ---------- */
 function setView(v) {
   if (S.hidden) return;
-  ['vCompact', 'vFull', 'vNotif', 'vChip'].forEach(id => $(id).classList.toggle('on', id === v));
-  isl.classList.toggle('open', v === 'vFull');
+  ['vCompact', 'vFull', 'vNotch', 'vNotif', 'vChip'].forEach(id => $(id).classList.toggle('on', id === v));
+  isl.classList.toggle('open', v === 'vFull' || v === 'vNotch');
   isl.classList.toggle('notif', v === 'vNotif');
   isl.classList.toggle('chip', v === 'vChip');
   fit();
 }
 [...$('vFull').children].forEach((c, i) => c.style.setProperty('--i', i));
+[$('vNotch').querySelector('.nhead'), ...$('vNotch').querySelectorAll('.nc')].forEach((c, i) => c.style.setProperty('--i', i));
 
 function fx(cls, ms) { isl.classList.remove(cls); void isl.offsetWidth; isl.classList.add(cls); setTimeout(() => isl.classList.remove(cls), ms); }
 function pop(el, from = .6) { if (!RM) el.animate([{ transform: `scale(${from})`, opacity: .3 }, { transform: 'scale(1.15)', opacity: 1, offset: .55 }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' }); }
@@ -100,10 +115,10 @@ function popFull(ms, flash) {
   if (S.hidden && S.pct < CFG.alarm) return;
   if (S.hidden) unhide();
   if (flash) { S.flash = 1; $('forecast').textContent = flash; setTimeout(() => { S.flash = 0; }, ms); }
-  setView('vFull'); clearTimeout(popT);
+  setView(FULL()); clearTimeout(popT);
   popT = setTimeout(() => { if (!hover && !S.pinned) setView('vCompact'); }, ms);
 }
-function toggle() { if (S.hidden) return unhide(); S.pinned = !isl.classList.contains('open'); setView(S.pinned ? 'vFull' : 'vCompact'); }
+function toggle() { if (S.hidden) return unhide(); S.pinned = !isl.classList.contains('open'); setView(S.pinned ? FULL() : 'vCompact'); }
 function hide() { S.hidden = true; S.pinned = false; isl.classList.remove('open', 'notif'); isl.classList.add('hidden'); fit(); }
 function unhide() { S.hidden = false; isl.classList.remove('hidden'); setView('vCompact'); }
 
@@ -116,7 +131,7 @@ function tweenTo(p) {
     const k = Math.min(1, (t - t0) / (d || 1)), e = 1 - Math.pow(1 - k, 3);
     shown = a + (p - a) * e;
     const v = Math.round(shown) + '%';
-    $('fPct').textContent = v;
+    $('fPct').textContent = v; $('nPct').textContent = v;
     if (!isl.classList.contains('stale')) $('cPct').textContent = v;
     if (k < 1) tw = requestAnimationFrame(step);
   };
@@ -202,7 +217,54 @@ function render() {
     : n ? `<div>${t('Новых сообщений: {0} — открой Telegram, чтобы прочитать', n)}</div>`
     : `<div>${S.tg === 'denied' ? t('Нет доступа к уведомлениям — разреши в Параметрах Windows') : t('Нет новых сообщений')}</div>`;
 
+  renderNotch(now, stale, left, c, pos, n);
   fit();
+}
+
+/* ---------- раскрытый вырез ---------- */
+const PLAY_ICO = 'M8 5v14l11-7z', PAUSE_ICO = 'M7 5h3.5v14H7zM13.5 5H17v14h-3.5z';
+const avColor = s => `hsl(${[...String(s)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7)} 55% 52%)`;
+function renderNotch(now, stale, left, c, pos, n) {
+  $('nPct').textContent = stale ? '—' : Math.round(shown) + '%';
+  $('nReset').textContent = stale ? '' : t('сброс {0}', hm(left));
+  $('nb5').style.width = S.pct + '%'; $('nb5').style.background = c;
+  $('nWeek').textContent = stale ? '—' : S.week + '%';
+  $('nbw').style.width = S.week + '%'; $('nbw').style.background = stale ? c : color(S.week);
+
+  const st = S.waiting ? ['wait', t('Ждёт разрешения'), t('Нужно твоё действие')]
+    : S.thinking ? ['work', t('Работает'), t('Claude отвечает…')]
+    : ['', t('Свободен'), t('Нет активных задач')];
+  $('nCdot').className = 'cdot ' + st[0]; $('nCode').textContent = st[1]; $('nCodeSub').textContent = st[2];
+  $('nCodeMore').textContent = $('forecast').textContent;
+
+  const m = S.media;
+  // в вырезе плеер только когда что-то играет или стоит на паузе
+  const hideP = CFG.music === false || !m.has;
+  if ($('nMusic').hidden !== hideP) { $('nMusic').hidden = hideP; fit(); }
+  $('nSong').textContent = m.has ? m.title : t('Ничего не играет');
+  $('nArtist').textContent = m.has ? m.artist : t('Включи трек в любом плеере');
+  $('nPos').textContent = mmss(pos); $('nDur').textContent = mmss(m.dur || 0);
+  $('nProg').style.width = (m.dur ? pos / m.dur * 100 : 0) + '%';
+  $('nPlayIco').setAttribute('d', m.playing ? PAUSE_ICO : PLAY_ICO);
+  ['nPrev', 'nPlay', 'nNext'].forEach(b => { $(b).disabled = !m.has; });
+
+  // Telegram: без текста сообщений — только кто написал и сколько
+  $('nTg').hidden = !CFG.tg;
+  $('nTgN').textContent = n || '';
+  const by = new Map();
+  for (const x of S.unread) { const k = (by.get(x.from) || 0) + 1; by.delete(x.from); by.set(x.from, k); }
+  const list = [...by].reverse().slice(0, 3).map(([f, k]) =>
+    `<div class="tgm"><i class="av" style="background:${avColor(f)}">${esc([...String(f)][0] || '?')}</i><span>${esc(f)}</span><em>${k}</em></div>`).join('');
+  const tgHtml = list || (n ? `<p>${t('Непрочитанных: {0}', n)}</p>`
+    : `<p>${S.tg === 'denied' ? t('Нет доступа к уведомлениям') : t('Нет новых сообщений')}</p>`);
+  if ($('nTgList').innerHTML !== tgHtml) $('nTgList').innerHTML = tgHtml;
+
+  const d = new Date(), L = locale();
+  $('nMon').textContent = d.toLocaleDateString(L, { month: 'short' }).replace('.', '').slice(0, 3).replace(/^./, ch => ch.toUpperCase());
+  const days = [-1, 0, 1].map(k => { const x = new Date(d); x.setDate(d.getDate() + k);
+    return `<div${k ? '' : ' class="today"'}>${x.toLocaleDateString(L, { weekday: 'short' }).replace('.', '')}<b>${x.getDate()}</b></div>`; }).join('');
+  if ($('nDays').innerHTML !== days) $('nDays').innerHTML = days;
+  $('nClock').textContent = d.toLocaleTimeString(L, { hour: '2-digit', minute: '2-digit' });
 }
 const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 setInterval(render, 1000);
@@ -238,7 +300,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- ввод ---------- */
-isl.addEventListener('mouseenter', () => { hover = true; clearTimeout(hoverT); hoverT = setTimeout(() => { if (hover && !S.hidden) { clearTimeout(popT); setView('vFull'); } }, 110); });
+isl.addEventListener('mouseenter', () => { hover = true; clearTimeout(hoverT); hoverT = setTimeout(() => { if (hover && !S.hidden) { clearTimeout(popT); setView(FULL()); } }, 110); });
 isl.addEventListener('mouseleave', () => { hover = false; clearTimeout(hoverT); hoverT = setTimeout(() => { if (!hover && !S.pinned) S.waiting ? showWaiting() : setView('vCompact'); }, 220); });
 // WebView2 иногда теряет mouseleave при быстром уходе курсора — проверяем позицию сами
 setInterval(async () => {
@@ -247,8 +309,8 @@ setInterval(async () => {
 }, 500);
 isl.addEventListener('click', e => {
   if (S.hidden) { unhide(); return; }
-  if (isl.classList.contains('notif')) { clearTimeout(popT); setView('vFull'); return; }
-  if (e.target.closest('#tTg') && (S.unread.length || S.tgCount)) { S.unread = []; S.tgCount = 0; invoke('mark_tg_read'); render(); }
+  if (isl.classList.contains('notif')) { clearTimeout(popT); setView(FULL()); return; }
+  if (e.target.closest('#tTg, #nTg') && (S.unread.length || S.tgCount)) { S.unread = []; S.tgCount = 0; invoke('mark_tg_read'); render(); }
 });
 isl.addEventListener('contextmenu', e => { e.preventDefault(); S.hidden ? unhide() : hide(); });
 isl.addEventListener('keydown', e => {
@@ -263,6 +325,25 @@ $('mPlay').onclick = e => {
   if (!RM) $('cover').animate([{ transform: `scale(${S.media.playing ? .88 : 1})` }, { transform: `scale(${S.media.playing ? 1 : .88})` }],
     { duration: 450, easing: 'cubic-bezier(.34,1.5,.5,1)', fill: 'forwards' });
 };
+// клик по обложке или названию трека — вывести вперёд программу, которая играет
+for (const el of [$('nMusic').querySelector('.pr'), $('cover'), $('song')]) el.addEventListener('click', e => {
+  if (!S.media.has || e.target.closest('button')) return;
+  e.stopPropagation(); invoke('media_control', { action: 'focus' });
+});
+$('nPlay').onclick = e => { e.stopPropagation(); invoke('media_control', { action: 'toggle' }); pop($('nPlay'), .5); };
+$('nNext').onclick = e => { e.stopPropagation(); invoke('media_control', { action: 'next' }); };
+$('nPrev').onclick = e => { e.stopPropagation(); invoke('media_control', { action: 'prev' }); };
+$('nSet').onclick = e => { e.stopPropagation(); invoke('open_settings'); };
+$('nHide').onclick = e => { e.stopPropagation(); hide(); };
+// вкладки выреза: «Обзор» — все карточки, «Сообщения» — только Telegram, «Code» — только Claude Code
+$('nTabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  e.stopPropagation();
+  $('nTabs').querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  $('vNotch').dataset.tab = b.dataset.tab;
+  fit();
+});
+$('nTimer').onclick = e => { e.stopPropagation(); pomoToggle(); };
 $('mNext').onclick = e => { e.stopPropagation(); invoke('media_control', { action: 'next' }); };
 $('mPrev').onclick = e => { e.stopPropagation(); invoke('media_control', { action: 'prev' }); };
 
@@ -276,7 +357,8 @@ function applyUsage(u) {
   S.resetAt = ms(u.reset_at); S.lastUpdate = Date.now();
   const p = Math.round(u.pct ?? 0);
 
-  if (prev && S.resetAt > prev) {                   // окно сбросилось
+  // окно сбросилось: время сброса ушло вперёд заметно (на минуты), а не дрогнуло на секунды между опросами
+  if (prev && S.resetAt > prev + 10 * 60e3) {
     S.warned = {}; S.hist = [[Date.now(), p]];
     fx('celebrate', 1400);   // без автораскрытия — только вспышка
   }
@@ -318,7 +400,7 @@ function accentFrom(src) {
 // свечение при play/pause: волна идёт от эквалайзера (в свёрнутом виде) или от кнопки ▶ (в карточке)
 function mediaGlow(playing) {
   if (RM || S.hidden || !on('fx_media')) return;
-  const g = $('mGlow'), src = isl.classList.contains('open') ? $('mPlay') : isl.querySelector('.compact .eq');
+  const g = $('mGlow'), src = isl.classList.contains('open') ? $(NOTCH ? 'nPlay' : 'mPlay') : isl.querySelector('.compact .eq');
   const r = src && src.getBoundingClientRect(), ir = isl.getBoundingClientRect();
   g.style.setProperty('--mx', r && r.width ? ((r.left + r.width / 2 - ir.left) / ir.width * 100).toFixed(1) + '%' : '50%');
   g.className = 'mglow'; void g.offsetWidth;
@@ -332,9 +414,10 @@ function applyCover(c) {
   if (!c || c.id === coverId) return;
   coverId = c.id;
   S.media.cover = c.cover || '';
-  const cv = $('cover');
-  cv.style.backgroundImage = S.media.cover ? `url(${S.media.cover})` : '';
-  cv.textContent = S.media.cover ? '' : (S.media.title ? S.media.title[0] : '♪');
+  for (const cv of [$('cover'), $('nCover')]) {
+    cv.style.backgroundImage = S.media.cover ? `url(${S.media.cover})` : '';
+    cv.textContent = S.media.cover ? '' : (S.media.title ? S.media.title[0] : '♪');
+  }
   if (S.media.cover) accentFrom(S.media.cover).then(a => { if (a) { S.media.accent = a; isl.style.setProperty('--eqc', a); } });
   else { S.media.accent = ''; isl.style.removeProperty('--eqc'); }
 }
@@ -348,7 +431,7 @@ function applyMedia(m) {
   const o = S.media, same = m.title === o.title && !!m.playing === o.playing && (m.pos || 0) === o.pos;
   S.media = { has: !!m.has, playing: !!m.playing, title: m.title || '', artist: m.artist || '', pos: m.pos || 0, dur: m.dur || 0, cover: o.cover || '', accent: o.accent || '', posAt: same && o.posAt ? o.posAt : Date.now() };
   const cv = $('cover');
-  if (!S.media.cover) cv.textContent = S.media.title ? S.media.title[0] : '♪';
+  if (!S.media.cover) cv.textContent = $('nCover').textContent = S.media.title ? S.media.title[0] : '♪';
   // обложка пропущена (окно загрузилось позже события) — забираем её сами
   if (TAURI && m.cover_id !== undefined && m.cover_id !== coverId) invoke('get_media_cover').then(applyCover).catch(() => {});
   if (changed && !RM) {
@@ -368,7 +451,7 @@ function applyNotif(msg) {
   $('nText').textContent = msg.text;
   setView('vNotif'); fx('bump', 500); pop($('dot'), 0);
   clearTimeout(popT);
-  popT = setTimeout(() => setView(hover || S.pinned ? 'vFull' : 'vCompact'), 3000);
+  popT = setTimeout(() => setView(hover || S.pinned ? FULL() : 'vCompact'), 3000);
 }
 
 listen('usage-update', e => applyUsage(e.payload));
@@ -386,8 +469,30 @@ function line(pct, kind = '', ms = 1400) {
   lineT = setTimeout(() => g.classList.remove('on'), ms);
 }
 // громкость: линия по краю + процент на месте часов, пока линия горит
+const SPK = 'M3 9v6h4l5 5V4L7 9H3z', W1 = 'M14.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z',
+  W2 = 'M14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z',
+  XX = 'M16.5 12 19 9.5 20.4 10.9 17.9 13.4 20.4 15.9 19 17.3 16.5 14.8 14 17.3 12.6 15.9 15.1 13.4 12.6 10.9 14 9.5z';
+// громкость в вырезе: вырез чуть подрастает (значок и процент), снизу наружу — мягкий свет.
+// Свет зелёный, длина = громкость; тишина (без звука или 0) — красный по всей длине.
+function notchVolume(v) {
+  if (S.hidden || ['open', 'notif', 'chip'].some(c => isl.classList.contains(c))) return;
+  const silent = v.muted || !v.level, lv = silent ? 0 : v.level;
+  $('vPct').textContent = lv + '%';
+  $('vIco').setAttribute('d', silent ? SPK + ' ' + XX : SPK + (lv > 33 ? ' ' + W1 : '') + (lv > 66 ? ' ' + W2 : ''));
+  const g = $('vGlow2');
+  g.style.setProperty('--v', silent ? 100 : lv);
+  g.classList.toggle('red', silent);
+  g.classList.add('on');
+  isl.classList.add('volshow'); isl.classList.toggle('silent', silent);
+  fit(); kick(900);
+  clearTimeout(notchVolume.t);
+  notchVolume.t = setTimeout(() => {
+    isl.classList.remove('volshow'); g.classList.remove('on'); fit(); kick(900);
+  }, 1400);
+}
 function applyVolume(v) {
   if (!on('fx_volume')) return;
+  if (NOTCH) return notchVolume(v);
   v.muted ? line(100, 'muted') : line(v.level);
   S.volText = v.muted || !v.level ? '🔇 0%' : (v.level < 34 ? '🔈 ' : v.level < 67 ? '🔉 ' : '🔊 ') + v.level + '%';
   S.volUntil = Date.now() + 1400;
@@ -410,7 +515,7 @@ function chip(text, ico, kind, ms = 2200) {
 }
 function chipEnd() {
   if (S.waiting) return showWaiting();
-  if (isl.classList.contains('chip')) setView(hover ? 'vFull' : 'vCompact');
+  if (isl.classList.contains('chip')) setView(hover ? FULL() : 'vCompact');
 }
 function showWaiting() { chip(t('Claude ждёт разрешения'), '!', 'amber', 0); }
 
@@ -473,8 +578,8 @@ listen('update-available', e => chip(t('Доступно обновление {0
 
 listen('toggle-hide', () => { S.hidden ? unhide() : hide(); });
 
-// перемотка: клик по полоске трека
-$('prog').parentElement.addEventListener('click', e => {
+// перемотка: клик по полоске трека (обычный вид и вырез)
+for (const bar of [$('prog').parentElement, $('nBar')]) bar.addEventListener('click', e => {
   e.stopPropagation();
   const m = S.media;
   if (!m.has || !m.dur) return;
@@ -490,10 +595,17 @@ listen('thinking', e => { S.thinking = !!e.payload; render(); });
 function applySettings(c) {
   if (!c) return;
   if (c.pos) stage.dataset.pos = c.pos;
-  document.documentElement.dataset.theme = c.theme || 'black';
+  const notch = c.shape === 'notch';
+  // вырез всегда чёрный: цвета карточек и текста берём из чёрной темы
+  document.documentElement.dataset.theme = notch ? 'black' : (c.theme || 'black');
+  if (notch !== NOTCH) {
+    NOTCH = notch; document.documentElement.dataset.shape = notch ? 'notch' : 'pill';
+    if (isl.classList.contains('open')) setView(FULL());
+    lastSize = ''; kick(900);
+  }
   CFG.warn = c.warn_at || 80; CFG.alarm = c.alarm_at || 95; CFG.swap = Math.max(2, c.swap_secs || 4);
   if (c.opacity != null) document.documentElement.style.setProperty('--island-a', c.opacity);
-  $('tMusic').hidden = c.show_music === false; fit(); CFG.tg = c.show_telegram !== false;
+  CFG.music = c.show_music !== false; $('tMusic').hidden = !CFG.music; fit(); CFG.tg = c.show_telegram !== false;
   CFG.fx = c; CFG.pomo = c.pomodoro_min || 25;
   setLang(c.lang); lockWidth();
   render();
@@ -508,6 +620,9 @@ render(); lockWidth();
 /* ---------- демо-режим без Tauri (только для просмотра визуала в браузере) ---------- */
 if (!TAURI) {
   document.body.style.background = 'linear-gradient(135deg,#1d2a44,#3b2f5c)';
+  // index.html#notch — посмотреть форму «вырез» так, как её рисует окно приложения
+  if (location.hash === '#notch') { document.documentElement.classList.add('tauri'); applySettings({ shape: 'notch', theme: 'black' }); }
+  window.demoVol = applyVolume;   // для проверки в браузере: demoVol({ level: 60 })
   let p = 58;
   applyUsage({ ok: true, pct: p, week_pct: 38, reset_at: Date.now() + 83 * 60e3, week_reset_at: Date.now() + 3 * 864e5 });
   applyMedia({ has: true, playing: true, title: 'Midnight City', artist: 'M83', pos: 57, dur: 244 });

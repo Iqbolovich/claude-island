@@ -58,6 +58,10 @@ fn place_xy(win: &WebviewWindow, pos: &str, w: f64, h: f64, free: (f64, f64)) ->
     let sf = mon.scale_factor();
     let ms = mon.size().to_logical::<f64>(sf);
     let mp = mon.position().to_logical::<f64>(sf);
+    // «вырез» — всегда по центру и вплотную к верхнему краю экрана
+    if pos == "notch" {
+        return Some((mp.x + (ms.width - w) / 2.0, mp.y));
+    }
     let x = match pos.chars().nth(1) {
         Some('l') => mp.x + 16.0,
         Some('r') => mp.x + ms.width - w - 16.0,
@@ -192,7 +196,7 @@ fn set_island_size(app: AppHandle, w: f64, h: f64) {
     let (pos, free) = {
         let st = app.state::<AppState>();
         let s = st.settings.lock().unwrap();
-        (s.pos.clone(), (s.free_x, s.free_y))
+        (s.place_pos().to_string(), (s.free_x, s.free_y))
     };
     // Размер и положение — одним SetWindowPos. Раньше это были два отдельных вызова на каждом
     // кадре анимации: окно на миг получало новую ширину на старом месте (рывок вбок),
@@ -238,7 +242,7 @@ fn save_settings(app: AppHandle, state: tauri::State<AppState>, s: Settings) -> 
             .inner_size()
             .map(|x| x.to_logical::<f64>(sf))
             .unwrap_or(LogicalSize::new(250.0, 38.0));
-        place(&win, &s.pos, size.width, size.height, (s.free_x, s.free_y));
+        place(&win, s.place_pos(), size.width, size.height, (s.free_x, s.free_y));
     }
     let _ = app.emit("settings-update", &s);
     hk
@@ -613,7 +617,7 @@ pub fn run() {
                 // Системное размытие не годится: Acrylic/Mica у неактивного окна становятся
                 // сплошной заливкой, а blur-behind игнорирует скруглённый регион и даёт
                 // чёрные углы. Матовое стекло рисует CSS.
-                place(&win, &s.pos, 250.0, 38.0, (s.free_x, s.free_y));
+                place(&win, s.place_pos(), 250.0, 38.0, (s.free_x, s.free_y));
                 let _ = win.emit("settings-update", &s);
             }
 

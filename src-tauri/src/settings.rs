@@ -22,6 +22,8 @@ pub struct Settings {
     pub autostart: bool,
     /// black | glass
     pub theme: String,
+    /// pill (капсула) | notch (вырез сверху экрана)
+    pub shape: String,
     /// auto | ru | en
     pub lang: String,
     /// сочетание в формате tauri (super+alt+KeyC); пусто — выключено
@@ -58,6 +60,7 @@ impl Default for Settings {
             poll_secs: 60,
             autostart: false,
             theme: "black".into(),
+            shape: "pill".into(),
             lang: "auto".into(),
             hotkey: "super+alt+KeyC".into(),
             fx_volume: true,
@@ -73,6 +76,13 @@ impl Default for Settings {
             pomodoro_min: 25,
             auto_update: true,
         }
+    }
+}
+
+impl Settings {
+    /// Положение для расчёта окна: вырез всегда сверху по центру.
+    pub fn place_pos(&self) -> &str {
+        if self.shape == "notch" { "notch" } else { &self.pos }
     }
 }
 
